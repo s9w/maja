@@ -5,6 +5,7 @@ from sqlalchemy import schema, types
 from sqlalchemy.sql import select
 import records
 import webbrowser
+import logging
 import time
 
 import requests
@@ -23,30 +24,6 @@ def se_load_token():
     with open('secrets.json') as data_file:
         data = json.load(data_file)
     return data.get("se_access_token", "")
-
-
-def se_test(se_conf, se_token):
-    now = arrow.utcnow()
-    earlier = now.replace(months=-1)
-    print(earlier)
-    print(earlier.timestamp)
-
-    payload = (
-        ("site", "tex"),
-        ("client_id", se_conf["client_id"]),
-        ("key", se_conf["key"]),
-        ("access_token", se_token),
-        ("fromdate", earlier.timestamp),
-        ("sort", "votes"),
-        ("min", 60)
-    )
-    r = requests.get('https://api.stackexchange.com/2.2/questions', params=payload)
-    print("url", r.url)
-    print(r)
-    res_json = r.json()
-    backoff_time = res_json.get("backoff", -1)
-    print(res_json)
-    print("backoff", backoff_time)
 
 
 def parse_jobs():
@@ -69,10 +46,26 @@ def parse_jobs():
     return jobs
 
 
-def run_jobs_se(conn, jobs, se_conf, se_token):
+def insert_to_db(posts, conn, items, subtype):
+    rows = []
+    for item in items:
+        rows.append({
+            "id": item["question_id"],
+            "type": "SE",
+            "subtype": subtype,
+            "link_in": item["link"],
+            "score": item["score"],
+            "title": item["title"],
+            "comments": item["answer_count"]
+        })
+
+    conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
+
+
+def run_jobs_se(posts, conn, jobs, se_conf, se_token):
     now = arrow.utcnow()
     earlier = now.replace(months=-1)
-    print("earlier.timestamp", earlier.timestamp)
+    logging.info("earlier.timestamp: {}".format(earlier.timestamp))
 
     def make_request(max):
         # prepare request parameters
@@ -94,7 +87,7 @@ def run_jobs_se(conn, jobs, se_conf, se_token):
         # make request
         api_url = 'https://api.stackexchange.com/2.2/questions'
         r = requests.get(api_url, params=payload)
-        print("url", r.url)
+        logging.debug("url: {}".format(r.url))
         res_json = r.json()
         if r.status_code != requests.codes.ok:
             print("status code not OK!", r.status_code)
@@ -123,6 +116,7 @@ def run_jobs_se(conn, jobs, se_conf, se_token):
                 time.sleep(backoff)
                 print(" done")
             items, min_score, has_more, backoff, quota_remaining = make_request(max_score)
+            insert_to_db(posts, conn, items, subtype=job["site"])
 
             done = not has_more
             print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
@@ -139,8 +133,8 @@ def init_db():
                   schema.Column('id', String, primary_key=True, unique=False),
                   schema.Column('type', String, primary_key=True),
                   schema.Column('subtype', String, primary_key=True),
-                  schema.Column('link1', String),
-                  schema.Column('link2', String, nullable=False),
+                  schema.Column('link_out', String),
+                  schema.Column('link_in', String, nullable=False),
                   schema.Column('score', Integer, nullable=False),
                   schema.Column('title', String, nullable=False),
                   schema.Column('comments', Integer, nullable=False)
@@ -156,10 +150,10 @@ def init_db():
     # result = conn.execute(ins)
 
     # insert multiple
-    # conn.execute(posts.insert(), [
-    #     {"id": "3", "type": "reddit", "subtype": "cpp"},
-    #     {"id": "4", "type": "reddit", "subtype": "python"},
-    #     {"id": "4", "type": "reddit", "subtype": "archer"}
+    # conn.execute(posts.insert().prefix_with("OR REPLACE"), [
+    #     {"id": "3", "type": "reddit", "subtype": "cpp", "link1": "test1"},
+    #     {"id": "4", "type": "reddit", "subtype": "python", "link1": "test2"},
+    #     {"id": "4", "type": "reddit", "subtype": "python", "link1": "test3"}
     # ])
 
     # select
@@ -175,14 +169,14 @@ def init_db():
     for row in result:
         print(row)
 
-    return conn
+    return posts, conn
 
 
 if __name__ == '__main__':
-    if __debug__:
-        print("ja")
-    else:
-        print("nein")
+    # setup logging
+    logging.basicConfig(level=logging.INFO)
+    # requests is a bit verbose
+    logging.getLogger("requests").setLevel(logging.WARNING)
 
     se_conf = {
         "client_id": "8691",
@@ -194,12 +188,10 @@ if __name__ == '__main__':
     se_token = se_load_token()
 
     # open/create database
-    conn = init_db()
+    posts, conn = init_db()
 
     # jobs
-    # jobs = parse_jobs()
-    # for job_type, jobs in jobs.items():
-    #     if job_type == "SE":
-    #         run_jobs_se(conn, jobs, se_conf, se_token)
-
-    # se_test(se_conf, se_token)
+    jobs = parse_jobs()
+    for job_type, jobs in jobs.items():
+        if job_type == "SE":
+            run_jobs_se(posts, conn, jobs, se_conf, se_token)
