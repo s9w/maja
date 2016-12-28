@@ -1,0 +1,20 @@
+[
+  {
+    "type": "SE",
+    "site": "stackoverflow",
+    "tags": "c++",
+    "score": 100
+  },
+  {
+    "type": "SE",
+    "site": "stackoverflow",
+    "tags": "python",
+    "score": 100
+  },
+  {
+    "type": "SE",
+    "site": "latex",
+    "tags": "python",
+    "score": 100
+  }
+]

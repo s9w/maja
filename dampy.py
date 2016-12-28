@@ -1,6 +1,13 @@
 import json
+import sqlalchemy
+from sqlalchemy import Column, Integer, String, Table
+from sqlalchemy import schema, types
+from sqlalchemy.sql import select
+import records
 import webbrowser
+
 import requests
+import arrow
 
 
 def se_get_token(se_conf):
@@ -14,16 +21,24 @@ def se_get_token(se_conf):
 def se_load_token():
     with open('secrets.json') as data_file:
         data = json.load(data_file)
-        print(data)
     return data.get("se_access_token", "")
 
 
 def se_test(se_conf, se_token):
+    now = arrow.utcnow()
+    earlier = now.replace(months=-1)
+    print(earlier)
+    print(earlier.timestamp)
+
     payload = (
-        ("site", "stackoverflow"),
+        ("site", "tex"),
         ("client_id", se_conf["client_id"]),
         ("key", se_conf["key"]),
-        ("access_token", se_token))
+        ("access_token", se_token),
+        ("fromdate", earlier.timestamp),
+        ("sort", "votes"),
+        ("min", 60)
+    )
     r = requests.get('https://api.stackexchange.com/2.2/questions', params=payload)
     print("url", r.url)
     print(r)
@@ -31,6 +46,58 @@ def se_test(se_conf, se_token):
     backoff_time = res_json.get("backoff", -1)
     print(res_json)
     print("backoff", backoff_time)
+
+
+def parse_jobs():
+    jobs = []
+    with open('jobs.json') as data_file:
+        jobs = json.load(data_file)
+    return jobs
+
+
+def init_db():
+    engine = sqlalchemy.create_engine('sqlite:///db.db', echo=False)
+    metadata = sqlalchemy.MetaData()
+
+    posts = Table('posts', metadata,
+                  schema.Column('id', String, primary_key=True, unique=False),
+                  schema.Column('type', String, primary_key=True),
+                  schema.Column('subtype', String, primary_key=True),
+                  schema.Column('link1', String),
+                  schema.Column('link2', String, nullable=False),
+                  schema.Column('score', Integer, nullable=False),
+                  schema.Column('title', String, nullable=False),
+                  schema.Column('comments', Integer, nullable=False)
+                  )
+
+    metadata.create_all(engine)
+
+    # insert single
+    conn = engine.connect()
+    # ins = posts.insert().values(id="1", type="HN", subtype="")
+    # result = conn.execute(ins)
+    # ins = posts.insert().values(id="2", type="reddit", subtype="programming")
+    # result = conn.execute(ins)
+
+    # insert multiple
+    # conn.execute(posts.insert(), [
+    #     {"id": "3", "type": "reddit", "subtype": "cpp"},
+    #     {"id": "4", "type": "reddit", "subtype": "python"},
+    #     {"id": "4", "type": "reddit", "subtype": "archer"}
+    # ])
+
+    # select
+    s = select([posts])
+    result = conn.execute(s)
+    for row in result:
+        print(row, row["id"], row[posts.c.id])
+    result.close()
+
+    # select adv
+    s = select([posts.c.id, posts.c.type])
+    result = conn.execute(s)
+    for row in result:
+        print(row)
 
 
 if __name__ == '__main__':
@@ -42,6 +109,15 @@ if __name__ == '__main__':
         "key": "bVsLGOdziqDVuvgu974HWQ(("
     }
 
-    # se_token = se_get_token(se_conf)
+    # open/create database
+    init_db()
 
-    # se_test(se_conf)
+    # jobs
+    # jobs = parse_jobs()
+    # for job in jobs:
+    #     print("type", job["type"])
+    #
+    # print("version", sqlalchemy.__version__ )
+
+    # se_token = se_load_token()
+    # se_test(se_conf, se_token)
