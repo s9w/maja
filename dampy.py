@@ -5,6 +5,7 @@ from sqlalchemy import schema, types
 from sqlalchemy.sql import select
 import records
 import webbrowser
+import time
 
 import requests
 import arrow
@@ -49,10 +50,85 @@ def se_test(se_conf, se_token):
 
 
 def parse_jobs():
-    jobs = []
-    with open('jobs.json') as data_file:
-        jobs = json.load(data_file)
+    # load from json job file
+    try:
+        with open('jobs.json') as data_file:
+            json_jobs = json.load(data_file)
+    except FileNotFoundError:
+        json_jobs = []
+
+    # group jobs by type
+    jobs = {
+        "SE": [],
+        "reddit": [],
+        "HN": []
+    }
+    for job in json_jobs:
+        jobs[job["type"]].append(job)
+
     return jobs
+
+
+def run_jobs_se(conn, jobs, se_conf, se_token):
+    now = arrow.utcnow()
+    earlier = now.replace(months=-1)
+    print("earlier.timestamp", earlier.timestamp)
+
+    def make_request(max):
+        # prepare request parameters
+        payload = (
+            ("site", job["site"]),
+            ("client_id", se_conf["client_id"]),
+            ("key", se_conf["key"]),
+            ("access_token", se_token),
+            ("fromdate", earlier.timestamp),
+            ("sort", "votes"),
+            ("min", job["score"]),
+            ("pagesize", 20)
+        )
+
+        # pagination, if previous request did not get all results
+        if max is not None:
+            payload += ("max", max),
+
+        # make request
+        api_url = 'https://api.stackexchange.com/2.2/questions'
+        r = requests.get(api_url, params=payload)
+        print("url", r.url)
+        res_json = r.json()
+        if r.status_code != requests.codes.ok:
+            print("status code not OK!", r.status_code)
+
+
+        # lowest score of all questions, needed for pagination
+        if res_json["has_more"]:
+            min_score = res_json["items"][-1]["score"]
+        else:
+            min_score = 999
+
+        return res_json["items"], \
+               min_score, \
+               res_json["has_more"], \
+               res_json.get("backoff", -1), \
+               res_json["quota_remaining"]
+
+    backoff = -1
+    for job in jobs:
+        print("  new job: ", job.items())
+        done = False
+        max_score = None
+        while not done:
+            if backoff > 0:
+                print("sleeping {} seconds...".format(backoff), end="", flush=True)
+                time.sleep(backoff)
+                print(" done")
+            items, min_score, has_more, backoff, quota_remaining = make_request(max_score)
+
+            done = not has_more
+            print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
+
+            # same-score answers could be missing
+            max_score = min_score
 
 
 def init_db():
@@ -99,8 +175,15 @@ def init_db():
     for row in result:
         print(row)
 
+    return conn
+
 
 if __name__ == '__main__':
+    if __debug__:
+        print("ja")
+    else:
+        print("nein")
+
     se_conf = {
         "client_id": "8691",
 
@@ -108,16 +191,15 @@ if __name__ == '__main__':
         # safely embed in client side code or distributed binaries."
         "key": "bVsLGOdziqDVuvgu974HWQ(("
     }
+    se_token = se_load_token()
 
     # open/create database
-    init_db()
+    conn = init_db()
 
     # jobs
     # jobs = parse_jobs()
-    # for job in jobs:
-    #     print("type", job["type"])
-    #
-    # print("version", sqlalchemy.__version__ )
+    # for job_type, jobs in jobs.items():
+    #     if job_type == "SE":
+    #         run_jobs_se(conn, jobs, se_conf, se_token)
 
-    # se_token = se_load_token()
     # se_test(se_conf, se_token)
