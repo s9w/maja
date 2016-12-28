@@ -3,7 +3,6 @@ import sqlalchemy
 from sqlalchemy import Column, Integer, String, Table
 from sqlalchemy import schema, types
 from sqlalchemy.sql import select
-import records
 import webbrowser
 import logging
 import time
@@ -67,7 +66,7 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
     earlier = now.replace(months=-1)
     logging.info("earlier.timestamp: {}".format(earlier.timestamp))
 
-    def make_request(max):
+    def make_request(job, max):
         # prepare request parameters
         payload = (
             ("site", job["site"]),
@@ -79,6 +78,9 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
             ("min", job["score"]),
             ("pagesize", 20)
         )
+
+        if job.get("tags"):
+            payload += ("tagged", job["tags"]),
 
         # pagination, if previous request did not get all results
         if max is not None:
@@ -115,8 +117,9 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
                 print("sleeping {} seconds...".format(backoff), end="", flush=True)
                 time.sleep(backoff)
                 print(" done")
-            items, min_score, has_more, backoff, quota_remaining = make_request(max_score)
-            insert_to_db(posts, conn, items, subtype=job["site"])
+            items, min_score, has_more, backoff, quota_remaining = make_request(job, max_score)
+            if len(items) > 0:
+                insert_to_db(posts, conn, items, subtype=job["site"])
 
             done = not has_more
             print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
@@ -157,17 +160,17 @@ def init_db():
     # ])
 
     # select
-    s = select([posts])
-    result = conn.execute(s)
-    for row in result:
-        print(row, row["id"], row[posts.c.id])
-    result.close()
+    # s = select([posts])
+    # result = conn.execute(s)
+    # for row in result:
+    #     print(row, row["id"], row[posts.c.id])
+    # result.close()
 
     # select adv
-    s = select([posts.c.id, posts.c.type])
-    result = conn.execute(s)
-    for row in result:
-        print(row)
+    # s = select([posts.c.id, posts.c.type])
+    # result = conn.execute(s)
+    # for row in result:
+    #     print(row)
 
     return posts, conn
 
