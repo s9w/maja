@@ -1,4 +1,8 @@
 import json
+import pprint
+import uuid
+
+import praw
 import sqlalchemy
 from sqlalchemy import Column, Integer, String, Table
 from sqlalchemy import schema, types
@@ -15,8 +19,57 @@ def se_get_token(se_conf):
     base_url = "https://stackexchange.com/oauth/dialog"
     success_url = "https://stackexchange.com/oauth/login_success"
     url = "{}?client_id={}&scope=no_expiry&redirect_uri={}".format(
-        base_url, se_conf["se_client_id"], success_url)
+        base_url, se_conf["client_id"], success_url)
     webbrowser.open(url)
+
+
+# def reddit():
+#     base_url = "https://www.reddit.com/api/v1/authorize"
+#     client_id = "IUrObKU-ORiL1g"
+#     state = "111"
+#     redirect_uri = "http://127.0.0.1:65010/authorize_callback"
+#     url = "{}?client_id={}&response_type=code&state={}&redirect_uri={}&duration=permanent&scope=identity".format(
+#         base_url, client_id, state, redirect_uri)
+#     webbrowser.open(url)
+
+def reddit_get_token():
+    # Application Only OAuth
+    client_id = "IUrObKU-ORiL1g"
+    endpoint = "https://www.reddit.com/api/v1/access_token"
+    device_id = "6e6cc493-69a4-483e-a554-d4d2cb963fe1"
+    headers = {'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)"}
+    post_data = {
+        'grant_type': 'https://oauth.reddit.com/grants/installed_client',
+        "device_id": device_id
+    }
+    r = requests.post(endpoint, data=post_data, headers=headers,
+                      auth=(client_id, ""))
+    print(r.text)
+
+    token = r.json()["access_token"]
+    print("token", token)
+    return token
+
+
+def praw_test(token):
+    # installed: client_secret -> None
+    # Read Only: no refresh_token
+
+    client_id = "IUrObKU-ORiL1g"
+    user_agent = "windows:dampy:v0.1 (by /u/SE400PPp)"
+    uri = "http://127.0.0.1:65010/authorize_callback"
+    reddit = praw.Reddit(
+        client_id=client_id,
+        client_secret=None,
+        redirect_uri = uri,
+        user_agent=user_agent
+    )
+    # print(reddit.auth.scopes())
+
+    subreddit = reddit.subreddit('redditdev')
+    for submission in subreddit.hot(limit=1):
+        # print(submission.title)
+        pprint.pprint(vars(submission))
 
 
 def se_load_token():
@@ -188,13 +241,20 @@ if __name__ == '__main__':
         # safely embed in client side code or distributed binaries."
         "key": "bVsLGOdziqDVuvgu974HWQ(("
     }
+    # se_get_token(se_conf)
+
     se_token = se_load_token()
 
+    # reddit_token = reddit_get_token()
+    reddit_token = "5lklrbHkIoTeMUhkrxItCLD_xKw"
+    praw_test(reddit_token)
+
     # open/create database
-    posts, conn = init_db()
+    # posts, conn = init_db()
 
     # jobs
-    jobs = parse_jobs()
-    for job_type, jobs in jobs.items():
-        if job_type == "SE":
-            run_jobs_se(posts, conn, jobs, se_conf, se_token)
+    # jobs = parse_jobs()
+    # for job_type, jobs in jobs.items():
+    #     if job_type == "SE":
+    #         run_jobs_se(posts, conn, jobs, se_conf, se_token)
+
