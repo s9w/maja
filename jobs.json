@@ -13,8 +13,17 @@
   },
   {
     "type": "SE",
-    "site": "latex",
-    "tags": "python",
+    "site": "tex",
+    "score": 10
+  },
+  {
+    "type": "reddit",
+    "subreddit": "programming",
+    "score": 100
+  },
+  {
+    "type": "reddit",
+    "subreddit": "meditation",
     "score": 100
   }
 ]

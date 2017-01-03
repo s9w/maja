@@ -1,18 +1,18 @@
 import json
-import pprint
-import uuid
-
-import praw
-import sqlalchemy
-from sqlalchemy import Column, Integer, String, Table
-from sqlalchemy import schema, types
-from sqlalchemy.sql import select
-import webbrowser
 import logging
+import pprint
 import time
+import webbrowser
 
-import requests
 import arrow
+import praw
+import requests
+import sqlalchemy
+from sqlalchemy import Integer, String, Table
+from sqlalchemy import schema
+
+# from reddit import run_jobs_reddit
+import reddit
 
 
 def se_get_token(se_conf):
@@ -49,20 +49,6 @@ def reddit_get_token():
     token = r.json()["access_token"]
     print("token", token)
     return token
-
-
-def reddit_test(reddit_token):
-    headers = {
-        'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)",
-        "Authorization": "bearer {}".format(reddit_token)
-    }
-    for i in range(70):
-        print(i)
-        r = requests.get('https://oauth.reddit.com/r/programming/top',
-                         headers=headers,
-                         params={"limit": 100, "t": "day"})
-        print(r.text)
-        print(r.headers)
 
 
 def praw_test(token):
@@ -112,27 +98,26 @@ def parse_jobs():
     return jobs
 
 
-def insert_to_db(posts, conn, items, subtype):
-    rows = []
-    for item in items:
-        rows.append({
-            "id": item["question_id"],
-            "type": "SE",
-            "subtype": subtype,
-            "link_in": item["link"],
-            "score": item["score"],
-            "title": item["title"],
-            "comments": item["answer_count"],
-            "read": 0
-        })
-
-    conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
-
-
 def run_jobs_se(posts, conn, jobs, se_conf, se_token):
     now = arrow.utcnow()
     earlier = now.replace(months=-1)
     logging.info("earlier.timestamp: {}".format(earlier.timestamp))
+
+    def insert_to_db(items, subtype):
+        rows = []
+        for item in items:
+            rows.append({
+                "id": item["question_id"],
+                "type": "SE",
+                "subtype": subtype,
+                "link_in": item["link"],
+                "score": item["score"],
+                "title": item["title"],
+                "comments": item["answer_count"],
+                "read": 0
+            })
+
+        conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
 
     def make_request(job, max):
         # prepare request parameters
@@ -162,7 +147,6 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
         if r.status_code != requests.codes.ok:
             print("status code not OK!", r.status_code)
 
-
         # lowest score of all questions, needed for pagination
         if res_json["has_more"]:
             min_score = res_json["items"][-1]["score"]
@@ -187,7 +171,7 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
                 print(" done")
             items, min_score, has_more, backoff, quota_remaining = make_request(job, max_score)
             if len(items) > 0:
-                insert_to_db(posts, conn, items, subtype=job["site"])
+                insert_to_db(items, subtype=job["site"])
 
             done = not has_more
             print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
@@ -244,7 +228,6 @@ def init_db():
     return posts, conn
 
 
-
 if __name__ == '__main__':
     # setup logging
     logging.basicConfig(level=logging.INFO)
@@ -262,17 +245,21 @@ if __name__ == '__main__':
 
     se_token = se_load_token()
 
-    reddit_token = "iicFvE6ImVk2kI3lcCnLJOO2bwg" # 8:47
+    reddit_token = "2rehbY9q3iTUQHackUGSNDe9hsM" # 9:53
     # reddit_token = reddit_get_token()
-    reddit_test(reddit_token)
+    # reddit_test(reddit_token)
     # praw_test(reddit_token)
 
     # open/create database
-    # posts, conn = init_db()
+    posts, conn = init_db()
 
     # jobs
-    # jobs = parse_jobs()
-    # for job_type, jobs in jobs.items():
-    #     if job_type == "SE":
-    #         run_jobs_se(posts, conn, jobs, se_conf, se_token)
+    jobs = parse_jobs()
+    for job_type, jobs in jobs.items():
+        # if job_type == "SE":
+        #     run_jobs_se(posts, conn, jobs, se_conf, se_token)
+
+        if job_type == "reddit":
+            reddit.run_jobs(posts, conn, jobs, reddit_token)
+
 
