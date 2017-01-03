@@ -51,6 +51,20 @@ def reddit_get_token():
     return token
 
 
+def reddit_test(reddit_token):
+    headers = {
+        'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)",
+        "Authorization": "bearer {}".format(reddit_token)
+    }
+    for i in range(70):
+        print(i)
+        r = requests.get('https://oauth.reddit.com/r/programming/top',
+                         headers=headers,
+                         params={"limit": 100, "t": "day"})
+        print(r.text)
+        print(r.headers)
+
+
 def praw_test(token):
     # installed: client_secret -> None
     # Read Only: no refresh_token
@@ -108,7 +122,8 @@ def insert_to_db(posts, conn, items, subtype):
             "link_in": item["link"],
             "score": item["score"],
             "title": item["title"],
-            "comments": item["answer_count"]
+            "comments": item["answer_count"],
+            "read": 0
         })
 
     conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
@@ -193,7 +208,8 @@ def init_db():
                   schema.Column('link_in', String, nullable=False),
                   schema.Column('score', Integer, nullable=False),
                   schema.Column('title', String, nullable=False),
-                  schema.Column('comments', Integer, nullable=False)
+                  schema.Column('comments', Integer, nullable=False),
+                  schema.Column('read', Integer, nullable=False)
                   )
 
     metadata.create_all(engine)
@@ -205,14 +221,14 @@ def init_db():
     # ins = posts.insert().values(id="2", type="reddit", subtype="programming")
     # result = conn.execute(ins)
 
-    # insert multiple
+    # # insert multiple
     # conn.execute(posts.insert().prefix_with("OR REPLACE"), [
     #     {"id": "3", "type": "reddit", "subtype": "cpp", "link1": "test1"},
     #     {"id": "4", "type": "reddit", "subtype": "python", "link1": "test2"},
     #     {"id": "4", "type": "reddit", "subtype": "python", "link1": "test3"}
     # ])
 
-    # select
+    # # select
     # s = select([posts])
     # result = conn.execute(s)
     # for row in result:
@@ -226,6 +242,7 @@ def init_db():
     #     print(row)
 
     return posts, conn
+
 
 
 if __name__ == '__main__':
@@ -245,9 +262,10 @@ if __name__ == '__main__':
 
     se_token = se_load_token()
 
+    reddit_token = "iicFvE6ImVk2kI3lcCnLJOO2bwg" # 8:47
     # reddit_token = reddit_get_token()
-    reddit_token = "5lklrbHkIoTeMUhkrxItCLD_xKw"
-    praw_test(reddit_token)
+    reddit_test(reddit_token)
+    # praw_test(reddit_token)
 
     # open/create database
     # posts, conn = init_db()
