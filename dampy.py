@@ -47,22 +47,15 @@ def parse_jobs():
         "reddit": [],
         "HN": []
     }
-    job_subtypes = {
-        "SE": [],
-        "reddit": [],
-        "HN": []
-    }
+    job_types = []
     for job in json_jobs:
         type = job["type"]
         subtype = get_subtype(job)
         jobs_by_type[type].append(job)
-        if subtype not in job_subtypes[type]:
-            job_subtypes[type].append({
-                "subtype": subtype,
-                "posts": get_posts(type, subtype)
-            })
 
-    return jobs_by_type, job_subtypes
+        job_types.append((type, subtype))
+
+    return jobs_by_type, job_types
 
 
 def init_db():
@@ -70,33 +63,36 @@ def init_db():
     cursor = conn.cursor()
 
     cursor.execute(
+        'CREATE TABLE IF NOT EXISTS categories ('
+        'category_id INTEGER PRIMARY KEY, '
+        'type STRING, '
+        'subtype STRING, '
+        'UNIQUE(type, subtype) ON CONFLICT IGNORE ) ')
+
+    cursor.execute(
         'CREATE TABLE IF NOT EXISTS "posts" ('
         '"id" "STRING", '
-        '"type" "STRING", '
-        '"subtype" "STRING", '
+        '"category_id" "INTEGER", '
         '"link_in" "STRING", '
         '"link_out" "STRING", '
         '"title" "STRING", '
         '"score" "INTEGER", '
         '"comments" "INTEGER", '
         '"read" "INTEGER" DEFAULT 0, '
-        'PRIMARY KEY("id", "type", "subtype")'
+        'PRIMARY KEY("id", "category_id"), '
+        'FOREIGN KEY(category_id) REFERENCES categories(category_id)'
         ')')
 
-    # cursor.execute(
-    #     'INSERT OR REPLACE INTO posts(id, type, subtype, score)'
-    #     'VALUES (100, "reddit", "programming", 42)'
-    # )
-    #
-    # cursor.execute(
-    #     'INSERT OR REPLACE INTO posts(id, type, subtype, score)'
-    #     'VALUES (100, "reddit", "programming", 43)'
-    # )
-
     conn.commit()
-
-    # conn.close()
     return conn, cursor
+
+
+def update_categories(conn, cursor, job_types):
+    cursor.executemany(
+        'INSERT INTO categories(type, subtype)'
+        'VALUES (?, ?)', job_types
+    )
+    conn.commit()
 
 
 if __name__ == '__main__':
@@ -116,7 +112,7 @@ if __name__ == '__main__':
 
     se_token = se_load_token()
 
-    reddit_token = "pBYAZ676Uy6VSIHV5d64bxWL2Bo" # 10:56
+    reddit_token = "QAKga8Vp7PWck-J-ggVLeHloMNY" # 14:41
     # reddit_token = reddit.get_token()
     # reddit_test(reddit_token)
     # praw_test(reddit_token)
@@ -125,33 +121,23 @@ if __name__ == '__main__':
     conn, cursor = init_db()
 
     # jobs
-    jobs_by_type, job_subtypes = parse_jobs()
+    jobs_by_type, job_types = parse_jobs()
+    update_categories(conn, cursor, job_types)
 
-    # for job_type, jobs in jobs_by_type.items():
-    #     if job_type == "SE":
-    #         stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
-    #
-    #     elif job_type == "reddit":
-    #         reddit.run_jobs(conn, cursor, jobs, reddit_token)
-    #
-    # conn.close()
+    for job_type, jobs in jobs_by_type.items():
+        if job_type == "SE":
+            stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
+
+        elif job_type == "reddit":
+            reddit.run_jobs(conn, cursor, jobs, reddit_token)
+
+    conn.close()
 
     # app = Flask(__name__)
-    # app.config
-
-    app = Flask(__name__)
-
-
-    @app.route('/')
-    def html_root():
-        # data = [{
-        #
-        # }]
-        return render_template('dampy.html', data=job_subtypes)
-
-    #
     # @app.route('/')
-    # def hello_world():
-    #     return 'Hello, World!'
-
-    app.run()
+    # def html_root():
+    #     # data = [{
+    #     #
+    #     # }]
+    #     return render_template('dampy.html', data=job_subtypes)
+    # app.run()

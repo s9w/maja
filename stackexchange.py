@@ -19,8 +19,8 @@ def insert_to_db(conn, cursor, items, subtype):
         ))
 
     cursor.executemany(
-        'INSERT OR REPLACE INTO posts(id, type, subtype, link_in, title, score, comments)'
-        'VALUES (?, ?, ?, ?, ?, ?, ?)', rows
+        'INSERT OR REPLACE INTO posts(id, category_id, link_in, title, score, comments)'
+        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?)', rows
     )
     conn.commit()
 

@@ -31,9 +31,10 @@ def insert_to_db_reddit(conn, cursor, job, items):
     ) for i in items if i["data"]["score"] >= job["score"]]
 
     cursor.executemany(
-        'INSERT OR REPLACE INTO posts(id, type, subtype, link_in, link_out, title, score, comments)'
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows
+        'INSERT OR REPLACE INTO posts(id, category_id, link_in, link_out, title, score, comments)'
+        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?)', rows
     )
+
     conn.commit()
 
 
