@@ -3,11 +3,8 @@ import logging
 import pprint
 import sqlite3
 import webbrowser
+from flask import Flask, render_template
 
-import praw
-import sqlalchemy
-from sqlalchemy import Integer, String, Table
-from sqlalchemy import schema
 
 import reddit, stackexchange
 
@@ -26,7 +23,17 @@ def se_load_token():
     return data.get("se_access_token", "")
 
 
+def get_posts(type, subtype):
+    pass
+
+
 def parse_jobs():
+    def get_subtype(job):
+        if job["type"] == "SE":
+            return job["site"]
+        elif job["type"] == "reddit":
+            return job["subreddit"]
+
     # load from json job file
     try:
         with open('jobs.json') as data_file:
@@ -35,15 +42,27 @@ def parse_jobs():
         json_jobs = []
 
     # group jobs by type
-    jobs = {
+    jobs_by_type = {
+        "SE": [],
+        "reddit": [],
+        "HN": []
+    }
+    job_subtypes = {
         "SE": [],
         "reddit": [],
         "HN": []
     }
     for job in json_jobs:
-        jobs[job["type"]].append(job)
+        type = job["type"]
+        subtype = get_subtype(job)
+        jobs_by_type[type].append(job)
+        if subtype not in job_subtypes[type]:
+            job_subtypes[type].append({
+                "subtype": subtype,
+                "posts": get_posts(type, subtype)
+            })
 
-    return jobs
+    return jobs_by_type, job_subtypes
 
 
 def init_db():
@@ -106,12 +125,33 @@ if __name__ == '__main__':
     conn, cursor = init_db()
 
     # jobs
-    jobs = parse_jobs()
-    for job_type, jobs in jobs.items():
-        if job_type == "SE":
-            stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
+    jobs_by_type, job_subtypes = parse_jobs()
 
-        elif job_type == "reddit":
-            reddit.run_jobs(conn, cursor, jobs, reddit_token)
+    # for job_type, jobs in jobs_by_type.items():
+    #     if job_type == "SE":
+    #         stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
+    #
+    #     elif job_type == "reddit":
+    #         reddit.run_jobs(conn, cursor, jobs, reddit_token)
+    #
+    # conn.close()
 
-    conn.close()
+    # app = Flask(__name__)
+    # app.config
+
+    app = Flask(__name__)
+
+
+    @app.route('/')
+    def html_root():
+        # data = [{
+        #
+        # }]
+        return render_template('dampy.html', data=job_subtypes)
+
+    #
+    # @app.route('/')
+    # def hello_world():
+    #     return 'Hello, World!'
+
+    app.run()
