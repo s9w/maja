@@ -1,19 +1,40 @@
 import requests
 
-def insert_to_db_reddit(posts, conn, job, items):
-    rows = [
-        {
-            "id": i["data"]["id"],
-            "type": "reddit",
-            "subtype": job["subreddit"],
-            "link_in": "https://www.reddit.com{}".format(i["data"]["permalink"]),
-            "link_out": i["data"]["url"],
-            "score": i["data"]["score"],
-            "title": i["data"]["title"],
-            "comments": i["data"]["num_comments"],
-            "read": 0
-        } for i in items if i["data"]["score"] >= job["score"]]
-    conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
+def get_token():
+    # Application Only OAuth
+    client_id = "IUrObKU-ORiL1g"
+    endpoint = "https://www.reddit.com/api/v1/access_token"
+    device_id = "6e6cc493-69a4-483e-a554-d4d2cb963fe1"
+    headers = {'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)"}
+    post_data = {
+        'grant_type': 'https://oauth.reddit.com/grants/installed_client',
+        "device_id": device_id
+    }
+    r = requests.post(endpoint, data=post_data, headers=headers,
+                      auth=(client_id, ""))
+    print(r.text)
+
+    token = r.json()["access_token"]
+    print("token", token)
+    return token
+
+def insert_to_db_reddit(conn, cursor, job, items):
+    rows = [(
+        i["data"]["id"],
+        "reddit",
+        job["subreddit"],
+        "https://www.reddit.com{}".format(i["data"]["permalink"]),
+        i["data"]["url"],
+        i["data"]["title"],
+        i["data"]["score"],
+        i["data"]["num_comments"]
+    ) for i in items if i["data"]["score"] >= job["score"]]
+
+    cursor.executemany(
+        'INSERT OR REPLACE INTO posts(id, type, subtype, link_in, link_out, title, score, comments)'
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows
+    )
+    conn.commit()
 
 
 def make_request(reddit_token, after, subreddit):
@@ -35,12 +56,12 @@ def make_request(reddit_token, after, subreddit):
     return r_json["data"]["children"], r_json["data"]["after"]
 
 
-def run_jobs(posts, conn, jobs, reddit_token):
+def run_jobs(conn, cursor, jobs, reddit_token):
     for job in jobs:
         print("  job: ", job.items())
         done = False
         after = None
         while not done:
             items, after = make_request(reddit_token, after, job["subreddit"])
-            insert_to_db_reddit(posts, conn, job, items)
+            insert_to_db_reddit(conn, cursor, job, items)
             done = not (after is not None and items[-1]["data"]["score"] >= job["score"])

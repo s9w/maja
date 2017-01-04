@@ -1,6 +1,7 @@
 import json
 import logging
 import pprint
+import sqlite3
 import time
 import webbrowser
 
@@ -31,25 +32,6 @@ def se_get_token(se_conf):
 #     url = "{}?client_id={}&response_type=code&state={}&redirect_uri={}&duration=permanent&scope=identity".format(
 #         base_url, client_id, state, redirect_uri)
 #     webbrowser.open(url)
-
-def reddit_get_token():
-    # Application Only OAuth
-    client_id = "IUrObKU-ORiL1g"
-    endpoint = "https://www.reddit.com/api/v1/access_token"
-    device_id = "6e6cc493-69a4-483e-a554-d4d2cb963fe1"
-    headers = {'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)"}
-    post_data = {
-        'grant_type': 'https://oauth.reddit.com/grants/installed_client',
-        "device_id": device_id
-    }
-    r = requests.post(endpoint, data=post_data, headers=headers,
-                      auth=(client_id, ""))
-    print(r.text)
-
-    token = r.json()["access_token"]
-    print("token", token)
-    return token
-
 
 def praw_test(token):
     # installed: client_secret -> None
@@ -98,7 +80,7 @@ def parse_jobs():
     return jobs
 
 
-def run_jobs_se(posts, conn, jobs, se_conf, se_token):
+def run_jobs_se(conn, cursor, jobs, se_conf, se_token):
     now = arrow.utcnow()
     earlier = now.replace(months=-1)
     logging.info("earlier.timestamp: {}".format(earlier.timestamp))
@@ -106,18 +88,21 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
     def insert_to_db(items, subtype):
         rows = []
         for item in items:
-            rows.append({
-                "id": item["question_id"],
-                "type": "SE",
-                "subtype": subtype,
-                "link_in": item["link"],
-                "score": item["score"],
-                "title": item["title"],
-                "comments": item["answer_count"],
-                "read": 0
-            })
+            rows.append((
+                item["question_id"],
+                "SE",
+                subtype,
+                item["link"],
+                item["title"],
+                item["score"],
+                item["answer_count"]
+            ))
 
-        conn.execute(posts.insert().prefix_with("OR REPLACE"), rows)
+        cursor.executemany(
+            'INSERT OR REPLACE INTO posts(id, type, subtype, link_in, title, score, comments)'
+            'VALUES (?, ?, ?, ?, ?, ?, ?)', rows
+        )
+        conn.commit()
 
     def make_request(job, max):
         # prepare request parameters
@@ -179,8 +164,44 @@ def run_jobs_se(posts, conn, jobs, se_conf, se_token):
             # same-score answers could be missing
             max_score = min_score
 
-
 def init_db():
+    conn = sqlite3.connect("db.sqlite")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS "posts" ('
+        '"id" "STRING", '
+        '"type" "STRING", '
+        '"subtype" "STRING", '
+        '"link_in" "STRING", '
+        '"link_out" "STRING", '
+        '"title" "STRING", '
+        '"score" "INTEGER", '
+        '"comments" "INTEGER", '
+        '"read" "INTEGER" DEFAULT 0, '
+        'PRIMARY KEY("id", "type", "subtype")'
+        ')')
+
+    # cursor.execute(
+    #     'INSERT OR REPLACE INTO posts(id, type, subtype, score)'
+    #     'VALUES (100, "reddit", "programming", 42)'
+    # )
+    #
+    # cursor.execute(
+    #     'INSERT OR REPLACE INTO posts(id, type, subtype, score)'
+    #     'VALUES (100, "reddit", "programming", 43)'
+    # )
+
+    conn.commit()
+
+    # conn.close()
+    return conn, cursor
+
+def db2():
+    pass
+
+
+def init_db_alchemy():
     engine = sqlalchemy.create_engine('sqlite:///db.db', echo=False)
     metadata = sqlalchemy.MetaData()
 
@@ -195,6 +216,7 @@ def init_db():
                   schema.Column('comments', Integer, nullable=False),
                   schema.Column('read', Integer, nullable=False)
                   )
+    print(str(Table))
 
     metadata.create_all(engine)
 
@@ -245,21 +267,21 @@ if __name__ == '__main__':
 
     se_token = se_load_token()
 
-    reddit_token = "2rehbY9q3iTUQHackUGSNDe9hsM" # 9:53
-    # reddit_token = reddit_get_token()
+    reddit_token = "pBYAZ676Uy6VSIHV5d64bxWL2Bo" # 10:56
+    # reddit_token = reddit.get_token()
     # reddit_test(reddit_token)
     # praw_test(reddit_token)
 
     # open/create database
-    posts, conn = init_db()
+    conn, cursor = init_db()
 
     # jobs
     jobs = parse_jobs()
     for job_type, jobs in jobs.items():
-        # if job_type == "SE":
-        #     run_jobs_se(posts, conn, jobs, se_conf, se_token)
+        if job_type == "SE":
+            run_jobs_se(conn, cursor, jobs, se_conf, se_token)
 
-        if job_type == "reddit":
-            reddit.run_jobs(posts, conn, jobs, reddit_token)
+        elif job_type == "reddit":
+            reddit.run_jobs(conn, cursor, jobs, reddit_token)
 
-
+    conn.close()
