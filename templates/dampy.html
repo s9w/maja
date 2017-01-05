@@ -1,40 +1,64 @@
 {% macro list_item(post) -%}
     <li>
-        <a href="{{ post[3] }}">{{ post[1] }}</a>
-        <a href="{{ post[4] }}">
-            <span>{{ post[0] }}</span>
-            <span>{{ post[2] }}</span>
-        </a>
+        <button onclick="mark_read('{{ post[6] }}', '{{ post[7] }}', {{ post[5] }})">X</button>
+        <div class="item_score">{{ post[0] }}</div>
+        <div class="item_main">
+            <div class="title"><a href="{{ post[4] }}">{{ post[2] }}</a></div>
+            <div class="comments"><a href="{{ post[3] }}">{{ post[1] }} comments</a></div>
+        </div>
     </li>
 {%- endmacro %}
 
 <!doctype html>
+<head>
+    <link rel="stylesheet" href="static/style.css" />
+    <script type='text/javascript'>
+        function mark_read(type, subtype, timestamp){
+            var url = "mark_read?timestamp=" + timestamp + "&type=" + type + "&subtype=" + subtype;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.send();
+            return false;
+        }
+        function start_scrape(){
+            var url = "scrape";
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.send();
+            return false;
+        }
+    </script>
 <title>dampy</title>
-<h1>Posts</h1>
+</head>
 
-<h2>Reddit</h2>
-{% for reddit_item in data.reddit %}
-    <h3>{{reddit_item.subtype}}</h3>
+<body>
+    <h1>Posts</h1>
+    <button onclick="start_scrape()">scrape!</button>
+
+    <h2>Reddit</h2>
+    {% for reddit_item in data.reddit %}
+        <h3>{{reddit_item.subtype}}</h3>
+        <ul>
+        {% for post in reddit_item.posts %}
+            {{ list_item(post) }}
+        {% endfor %}
+        </ul>
+    {% endfor %}
+
+    <h2>Stackexchange</h2>
+    {% for se_item in data.SE %}
+        <h3>{{se_item.subtype}}</h3>
+        <ul>
+        {% for post in se_item.posts %}
+            {{ list_item(post) }}
+        {% endfor %}
+        </ul>
+    {% endfor %}
+
+    <h2>Hacker News</h2>
     <ul>
-    {% for post in reddit_item.posts %}
+    {% for post in data.HN %}
         {{ list_item(post) }}
     {% endfor %}
     </ul>
-{% endfor %}
-
-<h2>Stackexchange</h2>
-{% for se_item in data.SE %}
-    <h3>{{se_item.subtype}}</h3>
-    <ul>
-    {% for post in se_item.posts %}
-        {{ list_item(post) }}
-    {% endfor %}
-    </ul>
-{% endfor %}
-
-<h2>Hacker News</h2>
-<ul>
-{% for post in data.HN %}
-    {{ list_item(post) }}
-{% endfor %}
-</ul>
+</body>
