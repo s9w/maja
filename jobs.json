@@ -19,11 +19,15 @@
   {
     "type": "reddit",
     "subreddit": "programming",
-    "score": 100
+    "score": 50
   },
   {
     "type": "reddit",
     "subreddit": "meditation",
+    "score": 100
+  },
+  {
+    "type": "HN",
     "score": 100
   }
 ]

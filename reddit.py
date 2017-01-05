@@ -18,13 +18,20 @@ def get_token():
     print("token", token)
     return token
 
+
 def insert_to_db_reddit(conn, cursor, job, items):
+    def get_link_out(data):
+        if data["is_self"]:
+            return None
+        else:
+            return data["url"]
+
     rows = [(
         i["data"]["id"],
         "reddit",
         job["subreddit"],
         "https://www.reddit.com{}".format(i["data"]["permalink"]),
-        i["data"]["url"],
+        get_link_out(i["data"]),
         i["data"]["title"],
         i["data"]["score"],
         i["data"]["num_comments"],
