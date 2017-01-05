@@ -1,35 +1,40 @@
+{% macro list_item(post) -%}
+    <li>
+        <a href="{{ post[3] }}">{{ post[1] }}</a>
+        <a href="{{ post[4] }}">
+            <span>{{ post[0] }}</span>
+            <span>{{ post[2] }}</span>
+        </a>
+    </li>
+{%- endmacro %}
+
 <!doctype html>
 <title>dampy</title>
 <h1>Posts</h1>
 
 <h2>Reddit</h2>
 {% for reddit_item in data.reddit %}
-    <h3>{{reddit_item.subreddit}}</h3>
+    <h3>{{reddit_item.subtype}}</h3>
     <ul>
     {% for post in reddit_item.posts %}
-        <li>
-            <a href="{{ post[2] }}">{{ post[6] }}</a>
-            <a href="{{ post[3] }}">
-                <span>{{ post[5] }}</span>
-                <span>{{ post[4] }}</span>
-            </a>
-        </li>
+        {{ list_item(post) }}
     {% endfor %}
     </ul>
 {% endfor %}
 
 <h2>Stackexchange</h2>
 {% for se_item in data.SE %}
-    <h3>{{se_item.site}}</h3>
+    <h3>{{se_item.subtype}}</h3>
     <ul>
     {% for post in se_item.posts %}
-        <li>
-            <a href="{{ post[2] }}">{{ post[6] }}</a>
-            <a href="{{ post[3] }}">
-                <span>{{ post[5] }}</span>
-                <span>{{ post[4] }}</span>
-            </a>
-        </li>
+        {{ list_item(post) }}
     {% endfor %}
     </ul>
 {% endfor %}
+
+<h2>Hacker News</h2>
+<ul>
+{% for post in data.HN %}
+    {{ list_item(post) }}
+{% endfor %}
+</ul>

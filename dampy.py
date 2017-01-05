@@ -124,53 +124,59 @@ if __name__ == '__main__':
     conn, cursor = init_db()
 
     # jobs
-    jobs_by_type, job_types = parse_jobs()
-    update_categories(conn, cursor, job_types)
-
-    for job_type, jobs in jobs_by_type.items():
-        if job_type == "SE":
-            stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
-
-        elif job_type == "reddit":
-            reddit.run_jobs(conn, cursor, jobs, reddit_token)
-
-        elif job_type == "HN":
-            hackernews.run_jobs(conn, cursor, jobs)
-
-
-    # template_data = {
-    #     "reddit": [],
-    #     "SE": []
-    # }
+    # jobs_by_type, job_types = parse_jobs()
+    # update_categories(conn, cursor, job_types)
     #
-    # cursor.execute(
-    #         'SELECT DISTINCT * FROM posts WHERE category_id = (SELECT category_id from categories WHERE type="reddit" AND subtype = ?)', ["programming"])
+    # for job_type, jobs in jobs_by_type.items():
+    #     if job_type == "SE":
+    #         stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
     #
-    # names = list(map(lambda x: x[0], cursor.description))
-    # print(names)
+    #     elif job_type == "reddit":
+    #         reddit.run_jobs(conn, cursor, jobs, reddit_token)
     #
-    # cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = "reddit"')
-    # subreddits = [item[0] for item in cursor.fetchall()]
-    #
-    # for type in ["reddit", "SE"]:
-    #     cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [type])
-    #     subtypes = [item[0] for item in cursor.fetchall()]
-    #
-    #     for subtype in subtypes:
-    #         cursor.execute(
-    #             'SELECT DISTINCT * FROM posts '
-    #             'WHERE category_id = (SELECT category_id from categories WHERE type=? AND subtype = ?)'
-    #             'ORDER BY "date" DESC ', [type, subtype])
-    #         template_data["reddit"].append({
-    #             "subreddit": subtype,
-    #             "posts": cursor.fetchall()
-    #         })
+    #     elif job_type == "HN":
+    #         hackernews.run_jobs(conn, cursor, jobs)
 
 
-    # app = Flask(__name__)
-    # @app.route('/')
-    # def html_root():
-    #     return render_template('dampy.html', data=template_data)
-    # app.run()
+    template_data = {
+        "reddit": [],
+        "SE": []
+    }
+
+    cursor.execute(
+            'SELECT DISTINCT * FROM posts WHERE category_id = (SELECT category_id from categories WHERE type="reddit" AND subtype = ?)', ["programming"])
+
+    names = list(map(lambda x: x[0], cursor.description))
+    print(names)
+
+    cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = "reddit"')
+    subreddits = [item[0] for item in cursor.fetchall()]
+
+    for type in ["reddit", "SE"]:
+        cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [type])
+        subtypes = [item[0] for item in cursor.fetchall()]
+
+        for subtype in subtypes:
+            cursor.execute(
+                'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date FROM posts '
+                'WHERE category_id = (SELECT category_id from categories WHERE type=? AND subtype = ?)'
+                'ORDER BY "date" DESC ', [type, subtype])
+            template_data[type].append({
+                "subtype": subtype,
+                "posts": cursor.fetchall()
+            })
+
+    cursor.execute(
+        'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date FROM posts '
+        'WHERE category_id = (SELECT category_id from categories WHERE type=? AND subtype = ?)'
+        'ORDER BY "date" DESC ', ["HN", ""])
+    template_data["HN"] = cursor.fetchall()
+
+
+    app = Flask(__name__)
+    @app.route('/')
+    def html_root():
+        return render_template('dampy.html', data=template_data)
+    app.run()
 
     conn.close()
