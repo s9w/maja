@@ -2,9 +2,34 @@
 <title>dampy</title>
 <h1>Posts</h1>
 
-<h2>Stackexchange</h2>
-<ul>
-{% for item in data.SE %}
-    <li>{{item}}</li>
+<h2>Reddit</h2>
+{% for reddit_item in data.reddit %}
+    <h3>{{reddit_item.subreddit}}</h3>
+    <ul>
+    {% for post in reddit_item.posts %}
+        <li>
+            <a href="{{ post[2] }}">{{ post[6] }}</a>
+            <a href="{{ post[3] }}">
+                <span>{{ post[5] }}</span>
+                <span>{{ post[4] }}</span>
+            </a>
+        </li>
+    {% endfor %}
+    </ul>
 {% endfor %}
-</ul>
+
+<h2>Stackexchange</h2>
+{% for se_item in data.SE %}
+    <h3>{{se_item.site}}</h3>
+    <ul>
+    {% for post in se_item.posts %}
+        <li>
+            <a href="{{ post[2] }}">{{ post[6] }}</a>
+            <a href="{{ post[3] }}">
+                <span>{{ post[5] }}</span>
+                <span>{{ post[4] }}</span>
+            </a>
+        </li>
+    {% endfor %}
+    </ul>
+{% endfor %}

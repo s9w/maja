@@ -15,12 +15,13 @@ def insert_to_db(conn, cursor, items, subtype):
             item["link"],
             item["title"],
             item["score"],
-            item["answer_count"]
+            item["answer_count"],
+            item["creation_date"]
         ))
 
     cursor.executemany(
-        'INSERT OR REPLACE INTO posts(id, category_id, link_in, title, score, comments)'
-        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?)', rows
+        'INSERT OR REPLACE INTO posts(id, category_id, link_in, title, score, comments, date)'
+        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?)', rows
     )
     conn.commit()
 
