@@ -1,4 +1,5 @@
 import arrow
+import logging
 import requests
 
 def make_request(job, page=0):
@@ -11,6 +12,10 @@ def make_request(job, page=0):
         ("hitsPerPage", 100),
         ("page", page)
     )
+
+    if "keyword" in job:
+        payload += ("query", job["keyword"]),
+
     r = requests.get(api_url, params=payload)
     res_json = r.json()
 
@@ -32,10 +37,13 @@ def insert_to_db(conn, cursor, items):
             item["created_at_i"]
         ))
 
+    # print("rowcount", cursor.rowcount)
     cursor.executemany(
         'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
         'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
     )
+    inserted_count = cursor.rowcount
+
     cursor.executemany(
         'UPDATE OR IGNORE posts SET id=?, '
         'category_id=(SELECT category_id from categories WHERE type = ? AND subtype = ?), '
@@ -44,18 +52,23 @@ def insert_to_db(conn, cursor, items):
     )
     conn.commit()
 
+    return inserted_count
+
 
 def run_jobs(conn, cursor, jobs):
+    inserted_rows_total = 0
     for job in jobs:
         done = False
         page = 0
         while not done:
             items, pages = make_request(job, page)
             if len(items) > 0:
-                insert_to_db(conn, cursor, items)
+                inserted_rows = insert_to_db(conn, cursor, items)
+                inserted_rows_total += inserted_rows
 
             if pages > page + 1:
                 done = False
                 page += 1
             else:
                 done = True
+    logging.info("HN done, inserted: {}".format(inserted_rows_total))
