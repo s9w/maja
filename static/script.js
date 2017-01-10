@@ -30,12 +30,12 @@ document.addEventListener("DOMContentLoaded", function(){
     }
 });
 
-function mark_read(el, type, subtype, timestamp){
+function mark_read(el, category_id, timestamp){
     for(var li = el.parentElement; li; li=li.nextElementSibling){
         li.classList.add("read");
     }
 
-    var url = "mark_read?timestamp=" + timestamp + "&type=" + type + "&subtype=" + subtype;
+    var url = "mark_read?timestamp=" + timestamp + "&cat_id=" + category_id;
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.send();
@@ -44,6 +44,14 @@ function mark_read(el, type, subtype, timestamp){
 
 function start_scrape(){
     var url = "scrape";
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.send();
+    return false;
+}
+
+function vac(){
+    var url = "vacuum";
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
     xhr.send();

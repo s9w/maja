@@ -1,7 +1,7 @@
 {% macro list_item(post) -%}
     <li data-date="{{ post[5] }}">
         <div class="read_button"
-                onclick="mark_read(this, '{{ post[6] }}', '{{ post[7] }}', {{ post[5] }})"
+                onclick="mark_read(this, '{{ post[8] }}', '{{ post[5] }}')"
                 onmouseover="mark_read_temp(this)"
                 onmouseout="undo_mark_read_temp(this)">↧
         </div>
@@ -25,6 +25,7 @@
 <body>
     <h1>Posts</h1>
     <button onclick="start_scrape()">scrape!</button>
+    <button onclick="vac()">vacuum!</button>
 
     <h2>Reddit</h2>
     {% for reddit_item in data.reddit %}

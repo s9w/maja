@@ -6,6 +6,7 @@ import sqlite3
 import webbrowser
 from flask import Flask, render_template, url_for, request
 import threading
+from datetime import datetime
 
 import reddit, stackexchange, hackernews
 
@@ -44,11 +45,11 @@ def parse_jobs():
     }
     job_types = []
     for job in json_jobs:
-        type = job["type"]
+        job_type = job["type"]
         subtype = get_subtype(job)
-        jobs_by_type[type].append(job)
+        jobs_by_type[job_type].append(job)
 
-        job_types.append((type, subtype))
+        job_types.append((job_type, subtype))
 
     return jobs_by_type, job_types
 
@@ -103,7 +104,7 @@ def make_template_data():
 
         for subtype in subtypes:
             cursor.execute(
-                'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype FROM posts JOIN categories '
+                'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype, categories.category_id FROM posts JOIN categories '
                 'ON posts.category_id = categories.category_id '
                 'WHERE read = 0 AND categories.type=? AND categories.subtype = ?'
                 'ORDER BY "date" DESC ', [type, subtype])
@@ -112,7 +113,7 @@ def make_template_data():
                 "posts": cursor.fetchall()
             })
     cursor.execute(
-        'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype FROM posts JOIN categories '
+        'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype, categories.category_id FROM posts JOIN categories '
         'ON posts.category_id = categories.category_id '
         'WHERE read = 0 AND categories.type=? AND categories.subtype = ?'
         'ORDER BY "date" DESC ', ["HN", ""])
@@ -164,6 +165,12 @@ if __name__ == '__main__':
 
     app = Flask(__name__)
 
+    def scrape_f():
+        print("scrape_f", time.ctime())
+        minutes = 10
+        seconds = minutes * 60
+        threading.Timer(seconds, scrape_f).start()
+
     @app.route('/scrape')
     def start_scraping():
         t = threading.Thread(target=run_jobs)
@@ -171,16 +178,29 @@ if __name__ == '__main__':
         t.start()
         return ""
 
+    @app.route('/vacuum')
+    def start_vacuum():
+        cursor.execute("VACUUM")
+        return ""
+
     @app.route('/mark_read')
     def mark_read():
+        print(str(request.args))
         # set read to 1, null unnecessary info to save space
         cursor.execute(
             'UPDATE posts SET read = 1, link_in = NULL, link_out = NULL, title = NULL '
-            'WHERE category_id = (SELECT category_id from categories WHERE type = ? AND subtype = ?) AND date <= ?',
-            [request.args.get("type"), request.args.get("subtype"), request.args.get("timestamp")]
+            'WHERE category_id = ? AND date <= ?',
+            [request.args.get("cat_id"), request.args.get("timestamp")]
         )
         conn.commit()
         return ""
+
+    # Without this, the browser sometimes caches the css file. Annoying while changing things
+    @app.after_request
+    def add_header(response):
+        response.headers['Cache-Control'] = 'public, max-age=0'
+        response.headers['Last-Modified'] = datetime.now()
+        return response
 
     @app.route('/')
     def html_root():
@@ -189,5 +209,7 @@ if __name__ == '__main__':
     t = threading.Thread(target=app.run)
     threads.append(t)
     t.start()
+
+    scrape_f()
 
     # conn.close()
