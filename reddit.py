@@ -1,4 +1,6 @@
 import requests
+import logging
+
 
 def get_token():
     # Application Only OAuth
@@ -52,7 +54,11 @@ def insert_to_db_reddit(conn, cursor, job, items):
     conn.commit()
 
 
-def make_request(reddit_token, after, subreddit):
+class ConnectionError503(ConnectionError):
+    pass
+
+
+def make_request(reddit_token, after, job):
     headers = {
         'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)",
         "Authorization": "bearer {}".format(reddit_token)
@@ -64,9 +70,16 @@ def make_request(reddit_token, after, subreddit):
     if after is not None:
         payload += ("after", after),
 
-    r = requests.get('https://oauth.reddit.com/r/{}/top'.format(subreddit),
-                     headers=headers,
-                     params=payload)
+    url = 'https://oauth.reddit.com/r/{}/top'.format(job["subreddit"])
+    if "keyword" in job:
+        url = 'https://oauth.reddit.com/r/{}/search'.format(job["subreddit"])
+        payload += ("q", job["keyword"]),
+        payload += ("restrict_sr", "true"),
+
+    r = requests.get(url, headers=headers, params=payload)
+    if r.status_code == 503:
+        raise ConnectionError503
+    print(r.text)
     r_json = r.json()
     return r_json["data"]["children"], r_json["data"]["after"]
 
@@ -77,6 +90,14 @@ def run_jobs(conn, cursor, jobs, reddit_token):
         done = False
         after = None
         while not done:
-            items, after = make_request(reddit_token, after, job["subreddit"])
+            # Especially when searching, reddit often throws a 503 error when overloaded
+            while True:
+                try:
+                    items, after = make_request(reddit_token, after, job)
+                except ConnectionError503:
+                    logging.warning("Reddit: ERROR 503. Retrying...")
+                    continue
+                break
+
             insert_to_db_reddit(conn, cursor, job, items)
             done = not (after is not None and items[-1]["data"]["score"] >= job["score"])
