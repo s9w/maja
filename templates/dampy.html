@@ -1,6 +1,10 @@
 {% macro list_item(post) -%}
     <li>
-        <button onclick="mark_read('{{ post[6] }}', '{{ post[7] }}', {{ post[5] }})">X</button>
+        <span class="read_button"
+                onclick="mark_read(this, '{{ post[6] }}', '{{ post[7] }}', {{ post[5] }})"
+                onmouseover="mark_read_temp(this)"
+                onmouseout="undo_mark_read_temp(this)">↧
+        </span>
         <div class="item_score">{{ post[0] }}</div>
         <div class="item_main">
             <div class="title"><a href="{{ post[4] }}">{{ post[2] }}</a></div>
@@ -12,22 +16,7 @@
 <!doctype html>
 <head>
     <link rel="stylesheet" href="static/style.css" />
-    <script type='text/javascript'>
-        function mark_read(type, subtype, timestamp){
-            var url = "mark_read?timestamp=" + timestamp + "&type=" + type + "&subtype=" + subtype;
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.send();
-            return false;
-        }
-        function start_scrape(){
-            var url = "scrape";
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.send();
-            return false;
-        }
-    </script>
+    <script src="static/script.js"></script>
 <title>dampy</title>
 </head>
 
