@@ -7,16 +7,7 @@ import webbrowser
 from flask import Flask, render_template, url_for, request
 import threading
 
-
 import reddit, stackexchange, hackernews
-
-
-def se_get_token(se_conf):
-    base_url = "https://stackexchange.com/oauth/dialog"
-    success_url = "https://stackexchange.com/oauth/login_success"
-    url = "{}?client_id={}&scope=no_expiry&redirect_uri={}".format(
-        base_url, se_conf["client_id"], success_url)
-    webbrowser.open(url)
 
 
 def se_load_token():
@@ -129,11 +120,28 @@ def make_template_data():
     return template_data
 
 
+def run_jobs():
+    jobs_by_type, job_types = parse_jobs()
+    update_categories(conn, cursor, job_types)
+    for job_type, jobs in jobs_by_type.items():
+        if job_type == "SE":
+            pass
+            stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
+
+        elif job_type == "reddit":
+            reddit.run_jobs(conn, cursor, jobs, reddit_token)
+
+        elif job_type == "HN":
+            hackernews.run_jobs(conn, cursor, jobs)
+
+
 if __name__ == '__main__':
     # setup logging
     logging.basicConfig(level=logging.INFO)
-    # requests is a bit verbose
+
+    # mute noise packages
     logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
     se_conf = {
         "client_id": "8691",
@@ -142,54 +150,30 @@ if __name__ == '__main__':
         # safely embed in client side code or distributed binaries."
         "key": "bVsLGOdziqDVuvgu974HWQ(("
     }
-    # se_get_token(se_conf)
 
     se_token = se_load_token()
 
-    reddit_token = "fWvChv_BelU_Wb9HTMOuJbipqI0"  # 2015
-    # reddit_token = reddit.get_token()
-    # reddit_test(reddit_token)
-    # praw_test(reddit_token)
+    # get one reddit API token initially. Will auto-renew if expires (after 60 minutes)
+    reddit_token = reddit.get_token()
 
     # open/create database
     conn, cursor = init_db()
 
+    # API calls will run on a different thread to not block the server
     threads = []
-
-    def f_wait():
-        print("sleep begin")
-        time.sleep(5)
-        print("sleep end")
 
     app = Flask(__name__)
 
-
     @app.route('/scrape')
     def start_scraping():
-        print("scraping... start")
-
-        # jobs
-        jobs_by_type, job_types = parse_jobs()
-        update_categories(conn, cursor, job_types)
-
-        for job_type, jobs in jobs_by_type.items():
-            if job_type == "SE":
-                pass
-                stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
-
-            elif job_type == "reddit":
-                reddit.run_jobs(conn, cursor, jobs, reddit_token)
-
-            elif job_type == "HN":
-                hackernews.run_jobs(conn, cursor, jobs)
-
-        print("scraping... end")
+        t = threading.Thread(target=run_jobs)
+        threads.append(t)
+        t.start()
         return ""
 
     @app.route('/mark_read')
     def mark_read():
-        print("   mark_read_py, path", dict(request.args.items()))
-
+        # set read to 1, null unnecessary info to save space
         cursor.execute(
             'UPDATE posts SET read = 1, link_in = NULL, link_out = NULL, title = NULL '
             'WHERE category_id = (SELECT category_id from categories WHERE type = ? AND subtype = ?) AND date <= ?',
@@ -198,23 +182,12 @@ if __name__ == '__main__':
         conn.commit()
         return ""
 
-    @app.route('/', methods=['GET', 'POST'])
+    @app.route('/')
     def html_root():
-        if request.method == 'POST':
-            print("POST")
-            t = threading.Thread(target=f_wait())
-            threads.append(t)
-            t.start()
-
-        elif request.method == 'GET':
-            print("GET")
-
         return render_template('dampy.html', data=make_template_data())
 
     t = threading.Thread(target=app.run)
     threads.append(t)
     t.start()
-
-    # app.run()
 
     # conn.close()

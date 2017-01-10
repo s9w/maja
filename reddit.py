@@ -44,6 +44,8 @@ def insert_to_db_reddit(conn, cursor, job, items):
         'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
         'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
     )
+    inserted_count = cursor.rowcount
+
     cursor.executemany(
         'UPDATE OR IGNORE posts SET id=?, '
         'category_id=(SELECT category_id FROM categories WHERE type = ? AND subtype = ?), '
@@ -52,9 +54,13 @@ def insert_to_db_reddit(conn, cursor, job, items):
     )
 
     conn.commit()
+    return inserted_count
 
 
 class ConnectionError503(ConnectionError):
+    pass
+
+class ConnectionErrorRedditAuth(ConnectionError):
     pass
 
 
@@ -77,14 +83,16 @@ def make_request(reddit_token, after, job):
         payload += ("restrict_sr", "true"),
 
     r = requests.get(url, headers=headers, params=payload)
-    if r.status_code == 503:
+    if r.status_code == 401:
+        raise ConnectionErrorRedditAuth
+    elif r.status_code == 503:
         raise ConnectionError503
-    print(r.text)
     r_json = r.json()
     return r_json["data"]["children"], r_json["data"]["after"]
 
 
 def run_jobs(conn, cursor, jobs, reddit_token):
+    inserted_rows_total = 0
     for job in jobs:
         print("  job: ", job.items())
         done = False
@@ -97,7 +105,13 @@ def run_jobs(conn, cursor, jobs, reddit_token):
                 except ConnectionError503:
                     logging.warning("Reddit: ERROR 503. Retrying...")
                     continue
+                except ConnectionErrorRedditAuth:
+                    reddit_token = get_token()
+                    logging.warning("Reddit: Token expired. Now token: {}. Retrying...".format(reddit_token))
+                    continue
                 break
 
-            insert_to_db_reddit(conn, cursor, job, items)
+            inserted_rows = insert_to_db_reddit(conn, cursor, job, items)
+            inserted_rows_total += inserted_rows
             done = not (after is not None and items[-1]["data"]["score"] >= job["score"])
+    logging.info("Reddit done, inserted: {}".format(inserted_rows_total))
