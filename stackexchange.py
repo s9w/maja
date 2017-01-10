@@ -1,5 +1,6 @@
 import logging
 import time
+import html
 
 import arrow
 import requests
@@ -14,7 +15,7 @@ def insert_to_db(conn, cursor, items, subtype):
             subtype,
             None,
             item["link"],
-            item["title"],
+            html.unescape(item["title"]),
             item["score"],
             item["answer_count"],
             item["creation_date"]
