@@ -1,14 +1,15 @@
 {% macro list_item(post) -%}
     <li data-date="{{ post[5] }}">
-        <span class="read_button"
+        <div class="read_button"
                 onclick="mark_read(this, '{{ post[6] }}', '{{ post[7] }}', {{ post[5] }})"
                 onmouseover="mark_read_temp(this)"
                 onmouseout="undo_mark_read_temp(this)">↧
-        </span>
+        </div>
         <div class="item_score">{{ post[0] }}</div>
         <div class="item_main">
             <div class="title"><a href="{{ post[4] }}">{{ post[2] }}</a></div>
             <div class="comments"><a href="{{ post[3] }}">{{ post[1] }} comments</a></div>
+            <div class="buffer"></div>
         </div>
     </li>
 {%- endmacro %}
