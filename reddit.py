@@ -1,5 +1,6 @@
 import requests
 import logging
+import html
 
 
 def get_token():
@@ -17,7 +18,6 @@ def get_token():
     print(r.text)
 
     token = r.json()["access_token"]
-    print("token", token)
     return token
 
 
@@ -34,7 +34,7 @@ def insert_to_db_reddit(conn, cursor, job, items):
         job["subreddit"],
         "https://www.reddit.com{}".format(i["data"]["permalink"]),
         get_link_out(i["data"]),
-        i["data"]["title"],
+        html.unescape(i["data"]["title"]),
         i["data"]["score"],
         i["data"]["num_comments"],
         i["data"]["created"]
@@ -59,6 +59,7 @@ def insert_to_db_reddit(conn, cursor, job, items):
 
 class ConnectionError503(ConnectionError):
     pass
+
 
 class ConnectionErrorRedditAuth(ConnectionError):
     pass
@@ -94,7 +95,6 @@ def make_request(reddit_token, after, job):
 def run_jobs(conn, cursor, jobs, reddit_token):
     inserted_rows_total = 0
     for job in jobs:
-        print("  job: ", job.items())
         done = False
         after = None
         while not done:
@@ -114,4 +114,4 @@ def run_jobs(conn, cursor, jobs, reddit_token):
             inserted_rows = insert_to_db_reddit(conn, cursor, job, items)
             inserted_rows_total += inserted_rows
             done = not (after is not None and items[-1]["data"]["score"] >= job["score"])
-    logging.info("Reddit done, inserted: {}".format(inserted_rows_total))
+    logging.info("{} Reddit jobs done, inserted: {}".format(len(jobs), inserted_rows_total))
