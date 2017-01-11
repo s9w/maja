@@ -25,6 +25,8 @@ def insert_to_db(conn, cursor, items, subtype):
         'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
         'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
     )
+    inserted_count = cursor.rowcount
+
     cursor.executemany(
         'UPDATE OR IGNORE posts SET id=?, '
         'category_id=(SELECT category_id FROM categories WHERE type = ? AND subtype = ?), '
@@ -32,6 +34,7 @@ def insert_to_db(conn, cursor, items, subtype):
         'WHERE read = 0', rows
     )
     conn.commit()
+    return inserted_count
 
 
 def make_request(se_conf, se_token, job, max_score):
@@ -79,7 +82,9 @@ def make_request(se_conf, se_token, job, max_score):
 
 
 def run_jobs(conn, cursor, jobs, se_conf, se_token):
+    inserted_rows_total = 0
     backoff = -1
+
     for job in jobs:
         print("  new job: ", job.items())
         done = False
@@ -91,10 +96,12 @@ def run_jobs(conn, cursor, jobs, se_conf, se_token):
                 print(" done")
             items, min_score, has_more, backoff, quota_remaining = make_request(se_conf, se_token, job, max_score)
             if len(items) > 0:
-                insert_to_db(conn, cursor, items, subtype=job["site"])
+                inserted_rows = insert_to_db(conn, cursor, items, subtype=job["site"])
+                inserted_rows_total += inserted_rows
 
             done = not has_more
             print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
 
             # same-score answers could be missing
             max_score = min_score
+    logging.info("Stack Exchange done, inserted: {}".format(inserted_rows_total))
