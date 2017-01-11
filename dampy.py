@@ -163,7 +163,7 @@ if __name__ == '__main__':
     # API calls will run on a different thread to not block the server
     threads = []
 
-    app = Flask(__name__, template_folder="static")
+    flask_app = Flask(__name__, template_folder="static")
 
     def scrape_f():
         print("scrape_f", time.ctime())
@@ -171,19 +171,19 @@ if __name__ == '__main__':
         seconds = minutes * 60
         threading.Timer(seconds, scrape_f).start()
 
-    @app.route('/scrape')
+    @flask_app.route('/scrape')
     def start_scraping():
         t = threading.Thread(target=run_jobs)
         threads.append(t)
         t.start()
         return ""
 
-    @app.route('/vacuum')
+    @flask_app.route('/vacuum')
     def start_vacuum():
         cursor.execute("VACUUM")
         return ""
 
-    @app.route('/mark_read')
+    @flask_app.route('/mark_read')
     def mark_read():
         print(str(request.args))
         # set read to 1, null unnecessary info to save space
@@ -196,17 +196,20 @@ if __name__ == '__main__':
         return ""
 
     # Without this, the browser sometimes caches the css file. Annoying while changing things
-    @app.after_request
+    @flask_app.after_request
     def add_header(response):
         response.headers['Cache-Control'] = 'public, max-age=0'
         response.headers['Last-Modified'] = datetime.now()
         return response
 
-    @app.route('/')
+    @flask_app.route('/')
     def html_root():
         return render_template('dampy.html', data=make_template_data())
 
-    t = threading.Thread(target=app.run)
+    def run_flask():
+        flask_app.run(port=80)
+
+    t = threading.Thread(target=run_flask)
     threads.append(t)
     t.start()
 
