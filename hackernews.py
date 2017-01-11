@@ -2,12 +2,22 @@ import arrow
 import logging
 import requests
 
+def get_tags(job):
+    tags = "story"
+    if job.get("self") == "ask":
+        tags += ",ask_hn"
+    elif job.get("self") == "show":
+        tags += ",show_hn"
+    elif job.get("self") == "both":
+        tags += ",(ask_hn,show_hn)"
+    return tags
+
 def make_request(job, page=0):
     now = arrow.utcnow()
     earlier = now.replace(weeks=-1)
     api_url = "https://hn.algolia.com/api/v1/search"
     payload = (
-        ("tags", "story"),
+        ("tags", (get_tags(job))),
         ("numericFilters", "points>={},created_at_i>{}".format(job["score"], earlier.timestamp)),
         ("hitsPerPage", 100),
         ("page", page)
