@@ -163,7 +163,7 @@ if __name__ == '__main__':
     # API calls will run on a different thread to not block the server
     threads = []
 
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="static")
 
     def scrape_f():
         print("scrape_f", time.ctime())
