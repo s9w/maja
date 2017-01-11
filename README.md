@@ -11,7 +11,14 @@ The **jobs** are read from a `jobs.json` file. The SQLite database file is creat
 
 Every job has a `score` property, which defines the minimum score (or "upvotes" depending on the site) the post must have to be considered.
 
-For **Reddit**, you must also specify a `subreddit`.
+For **Reddit**, you must also specify a `subreddit`. You can also set a `self` property to control how to filter self-posts:
+
+| Value of `self` | effect                            |
+|-----------------|-----------------------------------|
+| Not set         | all stories                       |
+| true            | only self posts                   |
+| false           | no self posts                     |
+
 
 For **Stack Exchange**, you must specify a `site` like `stackoverflow` or `tex`. Stack Exchange entries entries can also have a `tags` property to further limit the results to questions with those tags. That way you can only look at `python` questions at stackoverflow for example.
 

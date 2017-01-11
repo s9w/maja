@@ -20,25 +20,34 @@ def get_token():
     token = r.json()["access_token"]
     return token
 
-
-def insert_to_db_reddit(conn, cursor, job, items):
+def get_row(item_data, subreddit):
     def get_link_out(data):
         if data["is_self"]:
             return None
         else:
             return data["url"]
 
-    rows = [(
-        i["data"]["id"],
-        "reddit",
-        job["subreddit"],
-        "https://www.reddit.com{}".format(i["data"]["permalink"]),
-        get_link_out(i["data"]),
-        html.unescape(i["data"]["title"]),
-        i["data"]["score"],
-        i["data"]["num_comments"],
-        i["data"]["created"]
-    ) for i in items if i["data"]["score"] >= job["score"]]
+    return item_data["id"], \
+           "reddit", \
+           subreddit, \
+           "https://www.reddit.com{}".format(item_data["permalink"]), \
+           get_link_out(item_data), \
+           html.unescape(item_data["title"]), \
+           item_data["score"], \
+           item_data["num_comments"], \
+           item_data["created"]
+
+def insert_to_db_reddit(conn, cursor, job, items):
+    def criteria(item_data):
+        score_criteria = item_data["score"] >= job["score"]
+
+        if "self" in job:
+            self_criteria = item_data["is_self"] == job.get("self")
+            return score_criteria and self_criteria
+        else:
+            return score_criteria
+
+    rows = [get_row(i["data"], job["subreddit"]) for i in items if criteria(i["data"])]
 
     cursor.executemany(
         'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
