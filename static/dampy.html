@@ -29,7 +29,7 @@
 
     <h2>Reddit</h2>
     {% for reddit_item in data.reddit %}
-        <h3>{{reddit_item.subtype}}</h3>
+        <h3>r/{{reddit_item.subtype}}</h3>
         <ul>
         {% for post in reddit_item.posts %}
             {{ list_item(post) }}
@@ -56,7 +56,7 @@
 
     <h2>4chan</h2>
     {% for fourchan_item in data.fourchan %}
-        <h3>{{fourchan_item.subtype}}</h3>
+        <h3>/{{fourchan_item.subtype}}/</h3>
         <ul>
         {% for post in fourchan_item.posts %}
             {{ list_item(post) }}
