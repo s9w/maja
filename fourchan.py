@@ -5,9 +5,9 @@ import logging
 import requests
 import time
 
-def get_text(thread):
+def get_text(thread, shorten=100):
     string = html.unescape("{} {}".format(thread.get("sub", ""), thread.get("com", "")))
-    if len(string) > 100:
+    if shorten and len(string) > shorten:
         return "{}...".format(string[:100])
     return string
 
@@ -37,7 +37,7 @@ def insert_to_db(conn, cursor, job, items):
     def criteria(thread):
         comment_criteria = thread.get("replies", 0) >= job.get("comments", 0)
         if "keyword" in job:
-            keyword_criteria = get_text(thread).find(job["keyword"]) != -1
+            keyword_criteria = get_text(thread, shorten=False).find(job["keyword"]) != -1
         else:
             keyword_criteria = True
         return comment_criteria and keyword_criteria
