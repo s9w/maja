@@ -8,7 +8,7 @@ from flask import Flask, render_template, url_for, request
 import threading
 from datetime import datetime
 
-import reddit, stackexchange, hackernews
+import reddit, stackexchange, hackernews, fourchan
 
 
 def se_load_token():
@@ -17,16 +17,14 @@ def se_load_token():
     return data.get("se_access_token", "")
 
 
-def get_posts(type, subtype):
-    pass
-
-
 def parse_jobs():
     def get_subtype(job):
         if job["type"] == "SE":
             return job["site"]
         elif job["type"] == "reddit":
             return job["subreddit"]
+        elif job["type"] == "4chan":
+            return job["board"]
         else:
             return ""
 
@@ -41,7 +39,8 @@ def parse_jobs():
     jobs_by_type = {
         "SE": [],
         "reddit": [],
-        "HN": []
+        "HN": [],
+        "4chan": []
     }
     job_types = []
     for job in json_jobs:
@@ -93,12 +92,18 @@ def update_categories(conn, cursor, job_types):
 
 
 def make_template_data():
+    def sanitize_type(type):
+        if type == "4chan":
+            return "fourchan"
+        return type
+
     template_data = {
         "reddit": [],
-        "SE": []
+        "SE": [],
+        "fourchan": []
     }
 
-    for type in ["reddit", "SE"]:
+    for type in ["reddit", "SE", "4chan"]:
         cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [type])
         subtypes = [item[0] for item in cursor.fetchall()]
 
@@ -108,7 +113,7 @@ def make_template_data():
                 'ON posts.category_id = categories.category_id '
                 'WHERE read = 0 AND categories.type=? AND categories.subtype = ?'
                 'ORDER BY "date" DESC ', [type, subtype])
-            template_data[type].append({
+            template_data[sanitize_type(type)].append({
                 "subtype": subtype,
                 "posts": cursor.fetchall()
             })
@@ -134,6 +139,9 @@ def run_jobs():
 
         elif job_type == "HN":
             hackernews.run_jobs(conn, cursor, jobs)
+
+        elif job_type == "4chan":
+            fourchan.run_jobs(conn, cursor, jobs)
 
 
 if __name__ == '__main__':

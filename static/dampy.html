@@ -53,4 +53,14 @@
         {{ list_item(post) }}
     {% endfor %}
     </ul>
+
+    <h2>4chan</h2>
+    {% for fourchan_item in data.fourchan %}
+        <h3>{{fourchan_item.subtype}}</h3>
+        <ul>
+        {% for post in fourchan_item.posts %}
+            {{ list_item(post) }}
+        {% endfor %}
+        </ul>
+    {% endfor %}
 </body>
