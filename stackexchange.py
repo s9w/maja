@@ -81,7 +81,7 @@ def make_request(se_conf, se_token, job, max_score):
            res_json["quota_remaining"]
 
 
-def run_jobs(conn, cursor, jobs, se_conf, se_token):
+def run_jobs(conn, cursor, jobs, se_conf, tokens):
     inserted_rows_total = 0
     backoff = -1
 
@@ -94,7 +94,7 @@ def run_jobs(conn, cursor, jobs, se_conf, se_token):
                 print("sleeping {} seconds...".format(backoff), end="", flush=True)
                 time.sleep(backoff)
                 print(" done")
-            items, min_score, has_more, backoff, quota_remaining = make_request(se_conf, se_token, job, max_score)
+            items, min_score, has_more, backoff, quota_remaining = make_request(se_conf, tokens["se"], job, max_score)
             if len(items) > 0:
                 inserted_rows = insert_to_db(conn, cursor, items, subtype=job["site"])
                 inserted_rows_total += inserted_rows

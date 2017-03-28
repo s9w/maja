@@ -92,15 +92,15 @@ def update_categories(conn, cursor, job_types):
 
 
 def make_template_data(cursor):
-    def sanitize_type(type):
-        if type == "4chan":
+    def sanitize_type(site_type):
+        if site_type == "4chan":
             return "fourchan"
-        return type
+        return site_type
 
     template_data = {}
 
-    for type in ["reddit", "SE", "4chan"]:
-        cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [type])
+    for site_type in ["reddit", "SE", "4chan"]:
+        cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [site_type])
         subtypes = [item[0] for item in cursor.fetchall()]
 
         for subtype in subtypes:
@@ -108,8 +108,8 @@ def make_template_data(cursor):
                 'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype, categories.category_id FROM posts JOIN categories '
                 'ON posts.category_id = categories.category_id '
                 'WHERE read = 0 AND categories.type=? AND categories.subtype = ?'
-                'ORDER BY "date" DESC ', [type, subtype])
-            template_data.setdefault(sanitize_type(type), []).append({
+                'ORDER BY "date" DESC ', [site_type, subtype])
+            template_data.setdefault(sanitize_type(site_type), []).append({
                 "subtype": subtype,
                 "posts": cursor.fetchall()
             })
@@ -122,17 +122,16 @@ def make_template_data(cursor):
     return template_data
 
 
-def run_jobs(conn, cursor, se_conf, se_token, reddit_token):
+def run_jobs(conn, cursor, se_conf, tokens):
     logging.info("scraping started at {}".format(time.ctime()))
     jobs_by_type, job_types = parse_jobs()
     update_categories(conn, cursor, job_types)
     for job_type, jobs in jobs_by_type.items():
         if job_type == "SE":
-            pass
-            stackexchange.run_jobs(conn, cursor, jobs, se_conf, se_token)
+            stackexchange.run_jobs(conn, cursor, jobs, se_conf, tokens)
 
         elif job_type == "reddit":
-            reddit.run_jobs(conn, cursor, jobs, reddit_token)
+            reddit.run_jobs(conn, cursor, jobs, tokens)
 
         elif job_type == "HN":
             hackernews.run_jobs(conn, cursor, jobs)
@@ -164,13 +163,17 @@ def main():
     # get one reddit API token initially. Will auto-renew if expires (after 60 minutes)
     reddit_token = reddit.get_token()
 
+    tokens = {
+        "se": se_token,
+        "reddit": reddit_token
+    }
+
     # open/create database
     conn, cursor = init_db()
 
     flask_app = Flask(__name__, template_folder="static")
 
     def scrape_f():
-        print("scrape_f", time.ctime())
         start_scraping()
         minutes = 1
         seconds = minutes * 60
@@ -178,7 +181,7 @@ def main():
 
     @flask_app.route('/scrape')
     def start_scraping():
-        t = threading.Thread(target=run_jobs(conn, cursor, se_conf, se_token, reddit_token))
+        t = threading.Thread(target=run_jobs(conn, cursor, se_conf, tokens))
         t.start()
         return ""
 

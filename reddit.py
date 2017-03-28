@@ -111,7 +111,7 @@ def make_request(reddit_token, after, job):
     return r_json["data"]["children"], r_json["data"]["after"]
 
 
-def run_jobs(conn, cursor, jobs, reddit_token):
+def run_jobs(conn, cursor, jobs, tokens):
     inserted_rows_total = 0
     for job in jobs:
         done = False
@@ -120,13 +120,13 @@ def run_jobs(conn, cursor, jobs, reddit_token):
             # Especially when searching, reddit often throws a 503 error when overloaded
             while True:
                 try:
-                    items, after = make_request(reddit_token, after, job)
+                    items, after = make_request(tokens["reddit"], after, job)
                 except ConnectionError503:
                     logging.warning("Reddit: ERROR 503. Retrying...")
                     continue
                 except ConnectionErrorRedditAuth:
-                    reddit_token = get_token()
-                    logging.warning("Reddit: Token expired. Now token: {}. Retrying...".format(reddit_token))
+                    tokens["reddit"] = get_token()
+                    logging.warning("Reddit: Token expired. Now token: {}. Retrying...".format(tokens["reddit"]))
                     continue
                 break
 
