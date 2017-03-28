@@ -1,31 +1,38 @@
 document.addEventListener("DOMContentLoaded", function(){
-  // var now = moment();
+    function getSeparationString (dayPeriod) {
+        var day_str = dayPeriod===1?"day":"days";
+        return "↓ " + dayPeriod + " "+day_str+" ↓"
+    }
 
-  var yday = moment().subtract(1, 'days');
-  var readElArray = document.getElementsByTagName("ul");
-    for(var i = readElArray.length-1; i>=0; i--){
-        var ulElement = readElArray[i];
+  var lists = document.getElementsByTagName("ul");
+    for(var i_list = lists.length-1; i_list>=0; i_list--){
+        var ulElement = lists[i_list];
+
+        var dayPeriod = 1;
+
         for(var j = 0; j < ulElement.children.length; j++){
             var liElement = ulElement.children[j];
             var mom = moment.unix(liElement.dataset.date);
+            var day = moment().subtract(dayPeriod, 'days');
 
-            if(mom.isBefore(yday)){
-                // Looks silly before first element. In that case: no indication at all
+            if(mom.isBefore(day)){
+                // Skip time period indication at first element (looks silly)
                 if(j===0){
-                    break;
+                    dayPeriod += 1;
+                    continue;
                 }
 
-                liElement.classList.add("time_24h_margin");
+                // Mark post as first in new day period
+                liElement.classList.add("day_separation");
 
+                // Add horizontal line as visual divider
                 var newNode = document.createElement("div");
-                newNode.appendChild(document.createTextNode("↓ 24 hours ↓"));
-                newNode.classList.add("time_24h");
-                // ulElement.insertBefore(newNode, liElement);
+                newNode.appendChild(document.createTextNode(getSeparationString(dayPeriod)));
+                newNode.classList.add("day_indicator");
                 liElement.appendChild(newNode);
-                break;
-            }
 
-            // console.log("li, " + readElArray[i].children[j].dataset.date);
+                dayPeriod += 1;
+            }
         }
     }
 });

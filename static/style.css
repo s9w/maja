@@ -62,12 +62,12 @@ a:hover{
 }
 
 /* Time margins */
-.time_24h_margin{
+.day_separation{
     /*border-top: 1px red dashed;*/
     box-shadow: inset 0 2px 0 0 lightgray;
 }
 
-.time_24h {
+.day_indicator {
     font-size: 10pt;
     margin-left: 2em;
     background: lightgray;
