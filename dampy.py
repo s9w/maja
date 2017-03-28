@@ -91,17 +91,13 @@ def update_categories(conn, cursor, job_types):
     conn.commit()
 
 
-def make_template_data():
+def make_template_data(cursor):
     def sanitize_type(type):
         if type == "4chan":
             return "fourchan"
         return type
 
-    template_data = {
-        "reddit": [],
-        "SE": [],
-        "fourchan": []
-    }
+    template_data = {}
 
     for type in ["reddit", "SE", "4chan"]:
         cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [type])
@@ -113,7 +109,7 @@ def make_template_data():
                 'ON posts.category_id = categories.category_id '
                 'WHERE read = 0 AND categories.type=? AND categories.subtype = ?'
                 'ORDER BY "date" DESC ', [type, subtype])
-            template_data[sanitize_type(type)].append({
+            template_data.setdefault(sanitize_type(type), []).append({
                 "subtype": subtype,
                 "posts": cursor.fetchall()
             })
@@ -126,7 +122,8 @@ def make_template_data():
     return template_data
 
 
-def run_jobs():
+def run_jobs(conn, cursor, se_conf, se_token, reddit_token):
+    logging.info("scraping started at {}".format(time.ctime()))
     jobs_by_type, job_types = parse_jobs()
     update_categories(conn, cursor, job_types)
     for job_type, jobs in jobs_by_type.items():
@@ -142,9 +139,11 @@ def run_jobs():
 
         elif job_type == "4chan":
             fourchan.run_jobs(conn, cursor, jobs)
+    logging.info("scraping ended at {}".format(time.ctime()))
 
 
-if __name__ == '__main__':
+def main():
+    # se_conf, se_token, reddit_token, conn, cursor, threads, flask_app, scrape_f
     # setup logging
     logging.basicConfig(level=logging.INFO)
 
@@ -168,21 +167,18 @@ if __name__ == '__main__':
     # open/create database
     conn, cursor = init_db()
 
-    # API calls will run on a different thread to not block the server
-    threads = []
-
     flask_app = Flask(__name__, template_folder="static")
 
     def scrape_f():
         print("scrape_f", time.ctime())
-        minutes = 10
+        start_scraping()
+        minutes = 1
         seconds = minutes * 60
         threading.Timer(seconds, scrape_f).start()
 
     @flask_app.route('/scrape')
     def start_scraping():
-        t = threading.Thread(target=run_jobs)
-        threads.append(t)
+        t = threading.Thread(target=run_jobs(conn, cursor, se_conf, se_token, reddit_token))
         t.start()
         return ""
 
@@ -193,7 +189,8 @@ if __name__ == '__main__':
 
     @flask_app.route('/mark_read')
     def mark_read():
-        print(str(request.args))
+        logging.info("marked as read: {}".format(list(request.args.items())))
+
         # set read to 1, null unnecessary info to save space
         cursor.execute(
             'UPDATE posts SET read = 1, link_in = NULL, link_out = NULL, title = NULL '
@@ -212,15 +209,18 @@ if __name__ == '__main__':
 
     @flask_app.route('/')
     def html_root():
-        return render_template('dampy.html', data=make_template_data())
+        return render_template('dampy.html', data=make_template_data(cursor=cursor))
 
     def run_flask():
         flask_app.run(port=80)
 
     t = threading.Thread(target=run_flask)
-    threads.append(t)
     t.start()
 
     scrape_f()
 
     # conn.close()
+
+
+if __name__ == '__main__':
+    main()

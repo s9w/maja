@@ -20,6 +20,7 @@ def get_token():
     token = r.json()["access_token"]
     return token
 
+
 def get_row(item_data, subreddit):
     def get_link_out(data):
         if data["is_self"]:
@@ -36,6 +37,7 @@ def get_row(item_data, subreddit):
            item_data["score"], \
            item_data["num_comments"], \
            item_data["created"]
+
 
 def insert_to_db_reddit(conn, cursor, job, items):
     def criteria(item_data):
@@ -75,27 +77,35 @@ class ConnectionErrorRedditAuth(ConnectionError):
 
 
 def make_request(reddit_token, after, job):
+    def get_payload():
+        payload = (
+            ("limit", 100),
+            ("t", "week")
+        )
+
+        if after is not None:
+            payload += ("after", after),
+
+        if "keyword" in job:
+            payload += ("q", job["keyword"]),
+            payload += ("restrict_sr", "true"),
+
+        return payload
+
+    def get_url():
+        if "keyword" in job:
+            return 'https://oauth.reddit.com/r/{}/search'.format(job["subreddit"])
+        return 'https://oauth.reddit.com/r/{}/top'.format(job["subreddit"])
+
     headers = {
         'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)",
         "Authorization": "bearer {}".format(reddit_token)
     }
-    payload = (
-        ("limit", 100),
-        ("t", "week")
-    )
-    if after is not None:
-        payload += ("after", after),
 
-    url = 'https://oauth.reddit.com/r/{}/top'.format(job["subreddit"])
-    if "keyword" in job:
-        url = 'https://oauth.reddit.com/r/{}/search'.format(job["subreddit"])
-        payload += ("q", job["keyword"]),
-        payload += ("restrict_sr", "true"),
-
-    r = requests.get(url, headers=headers, params=payload)
-    if r.status_code == 401:
+    r = requests.get(get_url(), headers=headers, params=get_payload())
+    if r.status_code == 401:  # Unauthorized
         raise ConnectionErrorRedditAuth
-    elif r.status_code == 503:
+    elif r.status_code == 503:  # Service unavailable
         raise ConnectionError503
     r_json = r.json()
     return r_json["data"]["children"], r_json["data"]["after"]
