@@ -1,4 +1,4 @@
-{% macro list_item(post) -%}
+{% macro list_item(post, comm_string='comments') -%}
     <li data-date="{{ post[5] }}">
         <div class="read_button"
                 onclick="mark_read(this, '{{ post[8] }}', '{{ post[5] }}')"
@@ -8,7 +8,11 @@
         <div class="item_score">{{ post[0] }}</div>
         <div class="item_main">
             <div class="title"><a href="{{ post[4] }}">{{ post[2] }}</a></div>
-            <div class="comments"><a href="{{ post[3] }}">{{ post[1] }} comments</a></div>
+            {% if comm_string == 'comments' %}
+                <div class="comments"><a href="{{ post[3] }}">{{ post[1] }} {{ comm_string }}</a></div>
+            {% elif comm_string == 'answers' %}
+                <div class="comments"><div>{{ post[1] }} {{ comm_string }}</div></div>
+            {% endif %}
             <div class="buffer"></div>
         </div>
     </li>
@@ -42,7 +46,7 @@
         <h3>{{se_item.subtype}}</h3>
         <ul>
         {% for post in se_item.posts %}
-            {{ list_item(post) }}
+            {{ list_item(post, comm_string='answers') }}
         {% endfor %}
         </ul>
     {% endfor %}

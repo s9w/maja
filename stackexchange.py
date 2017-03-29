@@ -86,7 +86,6 @@ def run_jobs(conn, cursor, jobs, se_conf, tokens):
     backoff = -1
 
     for job in jobs:
-        print("  new job: ", job.items())
         done = False
         max_score = None
         while not done:
@@ -100,7 +99,7 @@ def run_jobs(conn, cursor, jobs, se_conf, tokens):
                 inserted_rows_total += inserted_rows
 
             done = not has_more
-            print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
+            # print("max_score:", max_score, ",  len:", len(items), ", done:", done, ", backoff:", backoff, quota_remaining)
 
             # same-score answers could be missing
             max_score = min_score
