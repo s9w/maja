@@ -1,6 +1,7 @@
 import arrow
 import logging
 import requests
+import html
 
 def get_tags(job):
     tags = "story"
@@ -41,7 +42,7 @@ def insert_to_db(conn, cursor, items):
             "",
             "https://news.ycombinator.com/item?id={}".format(item["objectID"]),
             item["url"],
-            item["title"],
+            html.unescape(item["title"]),
             item["points"],
             item["num_comments"],
             item["created_at_i"]
