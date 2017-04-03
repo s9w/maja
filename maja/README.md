@@ -1,15 +1,19 @@
 # dampy
-dampy collects posts from sites you regularly visit (Reddit, Hacker News, Stack Exchange) depending on defined criteria and presents them in a central place. 
+dampy collects posts from sites you regularly visit (Reddit, Hacker News, Stack Exchange, 4chan) depending on defined criteria and presents them in a central place. 
 
 ## Motivation
-Many developers visit Hacker News, Stack Exchange or Reddit daily to keep up to date. This can't be easily automated like RSS feeds from a blog, since only a small fraction of the many posts is relevant.
+Many developers and normal people visit Hacker News, Stack Exchange or Reddit (or even 4chan) daily to keep up to date. This can't easily be automated like RSS feeds from a blog, since only a tiny fraction of the many posts is relevant.
 
-With dampy you can define minimum scores and specific keywords for each of the sites. Matching posts get fetched in regular intervals, stored in a database and presented on a simple web interface. This approach is much more time-efficient and will catch things even if you are away for longer periods of time.
+With dampy you can define minimum scores and specific keywords and other criteria for each of the sites. Matching posts get fetched in regular intervals, stored in a database and presented on a simple web interface. This approach is much more time-efficient and will catch things even if you are away for longer periods of time.
 
 ## Usage
-The **jobs** are read from a `jobs.json` file. The SQLite database file is created in (or read from) the same folder. The config file contains a list of jobs of types `HN` (Hacker news), `SE` (Stack Exchange) or `reddit` (Reddit).
+The **jobs** are read from a `jobs.json` file. The config file contains a list of jobs of types `HN` (Hacker news), `SE` (Stack Exchange), `reddit` (Reddit) or '4chan' (4chan). The posts are stored in a SQLite database file in same folder.
 
 Every job has a `score` property, which defines the minimum score (or "upvotes" depending on the site) the post must have to be considered.
+
+### reddit
+
+**Reddit** jobs have a mandatory 'score' property  which defines the minimum 
 
 For **Reddit**, you must also specify a `subreddit`. You can also set a `self` property to control how to filter self-posts:
 

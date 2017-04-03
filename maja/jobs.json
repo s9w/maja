@@ -1,0 +1,53 @@
+[
+  {
+    "type": "reddit",
+    "subreddit": "programming",
+    "score": 50
+  },
+  {
+    "type": "reddit",
+    "subreddit": "meditation",
+    "score": 40
+  },
+  {
+    "type": "reddit",
+    "subreddit": "GifRecipes",
+    "score": 200
+  },
+  {
+    "type": "reddit",
+    "subreddit": "pcgaming",
+    "score": 200
+  },
+  {
+    "type": "reddit",
+    "subreddit": "Nootropics",
+    "score": 40
+  },
+  {
+    "type": "reddit",
+    "subreddit": "Physics+math",
+    "score": 100
+  },
+  {
+    "type": "HN",
+    "score": 30
+  },
+  {
+    "type": "HN",
+    "keyword": "physics",
+    "score": 20
+  },
+  {
+    "type": "SE",
+    "site": "stackoverflow",
+    "tags": "python",
+    "score": 30
+  },
+  {
+    "type": "4chan",
+    "board": "pol",
+    "comments": 50,
+    "keyword": "sugar"
+  }
+]
