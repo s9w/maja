@@ -13,9 +13,7 @@ def get_token():
         'grant_type': 'https://oauth.reddit.com/grants/installed_client',
         "device_id": device_id
     }
-    r = requests.post(endpoint, data=post_data, headers=headers,
-                      auth=(client_id, ""))
-    print(r.text)
+    r = requests.post(endpoint, data=post_data, headers=headers, auth=(client_id, ""))
 
     token = r.json()["access_token"]
     return token

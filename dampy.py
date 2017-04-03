@@ -158,14 +158,11 @@ def main():
         "key": "bVsLGOdziqDVuvgu974HWQ(("
     }
 
-    se_token = se_load_token()
-
-    # get one reddit API token initially. Will auto-renew if expires (after 60 minutes)
-    reddit_token = reddit.get_token()
-
     tokens = {
-        "se": se_token,
-        "reddit": reddit_token
+        "se": se_load_token(),
+
+        # get one reddit API token initially. Will auto-renew if expires (after 60 minutes)
+        "reddit": reddit.get_token()
     }
 
     # open/create database
@@ -173,11 +170,10 @@ def main():
 
     flask_app = Flask(__name__, template_folder="static")
 
-    def scrape_f():
+    def periodic_run():
         start_scraping()
-        minutes = 1
-        seconds = minutes * 60
-        threading.Timer(seconds, scrape_f).start()
+        seconds = 1 * 60
+        threading.Timer(seconds, periodic_run).start()
 
     @flask_app.route('/scrape')
     def start_scraping():
@@ -220,9 +216,7 @@ def main():
     t = threading.Thread(target=run_flask)
     t.start()
 
-    scrape_f()
-
-    # conn.close()
+    periodic_run()
 
 
 if __name__ == '__main__':

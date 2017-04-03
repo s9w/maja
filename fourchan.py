@@ -5,13 +5,15 @@ import logging
 import requests
 import time
 
+
 def get_text(thread, shorten=100):
     string = html.unescape("{} {}".format(thread.get("sub", ""), thread.get("com", "")))
     if shorten and len(string) > shorten:
         return "{}...".format(string[:100])
     return string
 
-def make_request(job, page=0):
+
+def make_request(job):
     now = arrow.utcnow()
     earlier = now.replace(weeks=-1)
     api_url = "http://a.4cdn.org/{}/catalog.json".format(job["board"])
@@ -21,6 +23,7 @@ def make_request(job, page=0):
 
     r = requests.get(api_url, params=payload)
     return r.json()
+
 
 def get_row(thread, board):
     return thread["no"], \
@@ -32,6 +35,7 @@ def get_row(thread, board):
            0, \
            thread.get("replies", 0), \
            thread["time"]
+
 
 def insert_to_db(conn, cursor, job, items):
     def criteria(thread):
@@ -49,7 +53,7 @@ def insert_to_db(conn, cursor, job, items):
         'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
         'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
     )
-    inserted_count = cursor.rowcount
+    inserted_count = max(cursor.rowcount, 0)
 
     cursor.executemany(
         'UPDATE OR IGNORE posts SET id=?, '
