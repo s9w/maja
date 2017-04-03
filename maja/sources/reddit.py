@@ -1,6 +1,7 @@
 import requests
 import logging
 import html
+import common
 
 
 def get_token():
@@ -37,33 +38,18 @@ def get_row(item_data, subreddit):
            item_data["created"]
 
 
-def insert_to_db_reddit(conn, cursor, job, items):
+def get_rows(items, job):
     def criteria(item_data):
         score_criteria = item_data["score"] >= job["score"]
 
         if "self" in job:
             self_criteria = item_data["is_self"] == job.get("self")
-            return score_criteria and self_criteria
         else:
-            return score_criteria
+            self_criteria = True
+        return all([score_criteria, self_criteria])
 
     rows = [get_row(i["data"], job["subreddit"]) for i in items if criteria(i["data"])]
-
-    cursor.executemany(
-        'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
-        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
-    )
-    inserted_count = cursor.rowcount
-
-    cursor.executemany(
-        'UPDATE OR IGNORE posts SET id=?, '
-        'category_id=(SELECT category_id FROM categories WHERE type = ? AND subtype = ?), '
-        'link_in=?, link_out=?, title=?, score=?, comments=?, date=? '
-        'WHERE read = 0', rows
-    )
-
-    conn.commit()
-    return inserted_count
+    return rows
 
 
 class ConnectionError503(ConnectionError):
@@ -92,8 +78,10 @@ def make_request(reddit_token, after, job):
 
     def get_url():
         if "keyword" in job:
-            return 'https://oauth.reddit.com/r/{}/search'.format(job["subreddit"])
-        return 'https://oauth.reddit.com/r/{}/top'.format(job["subreddit"])
+            url = 'https://oauth.reddit.com/r/{}/search'
+        else:
+            url = 'https://oauth.reddit.com/r/{}/top'
+        return url.format(job["subreddit"])
 
     headers = {
         'user-agent': "windows:dampy:v0.1 (by /u/SE400PPp)",
@@ -128,7 +116,8 @@ def run_jobs(conn, cursor, jobs, tokens):
                     continue
                 break
 
-            inserted_rows = insert_to_db_reddit(conn, cursor, job, items)
+            rows = get_rows(items, job)
+            inserted_rows = common.insert_to_db(conn, cursor, rows)
             inserted_rows_total += inserted_rows
             done = not (after is not None and items[-1]["data"]["score"] >= job["score"])
     logging.info("{} Reddit jobs done, inserted: {}".format(len(jobs), inserted_rows_total))

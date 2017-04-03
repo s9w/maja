@@ -8,7 +8,7 @@ from flask import Flask, render_template, url_for, request
 import threading
 from datetime import datetime
 
-import reddit, stackexchange, hackernews, fourchan
+from sources import reddit, stackexchange, hackernews, fourchan
 
 
 def se_load_token():
@@ -138,6 +138,10 @@ def run_jobs(conn, cursor, se_conf, tokens):
 
         elif job_type == "4chan":
             fourchan.run_jobs(conn, cursor, jobs)
+
+    # cleanup database
+    cursor.execute("VACUUM")
+
     logging.info("scraping ended at {}".format(time.ctime()))
 
 
@@ -171,20 +175,13 @@ def main():
     flask_app = Flask(__name__, template_folder="static")
 
     def periodic_run():
-        start_scraping()
-        seconds = 1 * 60
-        threading.Timer(seconds, periodic_run).start()
-
-    @flask_app.route('/scrape')
-    def start_scraping():
+        # run jobs on separate thread
         t = threading.Thread(target=run_jobs(conn, cursor, se_conf, tokens))
         t.start()
-        return ""
 
-    @flask_app.route('/vacuum')
-    def start_vacuum():
-        cursor.execute("VACUUM")
-        return ""
+        # periodic re-calling
+        seconds = 1 * 60
+        threading.Timer(seconds, periodic_run).start()
 
     @flask_app.route('/mark_read')
     def mark_read():
@@ -208,7 +205,7 @@ def main():
 
     @flask_app.route('/')
     def html_root():
-        return render_template('dampy.html', data=make_template_data(cursor=cursor))
+        return render_template('maja.html', data=make_template_data(cursor=cursor))
 
     def run_flask():
         flask_app.run(port=80)

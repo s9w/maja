@@ -4,13 +4,15 @@ import arrow
 import logging
 import requests
 import time
+import common
 
 
-def get_text(thread, shorten=100):
-    string = html.unescape("{} {}".format(thread.get("sub", ""), thread.get("com", "")))
-    if shorten and len(string) > shorten:
-        return "{}...".format(string[:100])
-    return string
+def get_thread_title(thread, shorten=100):
+    """generates a string representation of/from a thread"""
+    title = html.unescape("{} {}".format(thread.get("sub", ""), thread.get("com", "")))
+    if shorten and len(title) > shorten:
+        return "{}...".format(title[:100])
+    return title
 
 
 def make_request(job):
@@ -31,46 +33,31 @@ def get_row(thread, board):
            board, \
            "http://boards.4chan.org/{}/thread/{}".format(board, thread["no"]), \
            None, \
-           get_text(thread), \
+           get_thread_title(thread), \
            0, \
            thread.get("replies", 0), \
            thread["time"]
 
 
-def insert_to_db(conn, cursor, job, items):
+def get_rows(items, job):
     def criteria(thread):
         comment_criteria = thread.get("replies", 0) >= job.get("comments", 0)
         if "keyword" in job:
-            keyword_criteria = get_text(thread, shorten=False).find(job["keyword"]) != -1
+            keyword_criteria = get_thread_title(thread, shorten=False).find(job["keyword"]) != -1
         else:
             keyword_criteria = True
-        return comment_criteria and keyword_criteria
+        return all([comment_criteria, keyword_criteria])
 
     rows = [get_row(thread, job["board"]) for page in items for thread in page["threads"] if criteria(thread)]
-
-    # print("rowcount", cursor.rowcount)
-    cursor.executemany(
-        'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
-        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
-    )
-    inserted_count = max(cursor.rowcount, 0)
-
-    cursor.executemany(
-        'UPDATE OR IGNORE posts SET id=?, '
-        'category_id=(SELECT category_id from categories WHERE type = ? AND subtype = ?), '
-        'link_in=?, link_out=?, title=?, score=?, comments=?, date=? '
-        'WHERE read = 0', rows
-    )
-    conn.commit()
-
-    return inserted_count
+    return rows
 
 
 def run_jobs(conn, cursor, jobs):
     inserted_rows_total = 0
     for job in jobs:
         items = make_request(job)
-        inserted_rows = insert_to_db(conn, cursor, job, items)
+        rows = get_rows(items, job)
+        inserted_rows = common.insert_to_db(conn, cursor, rows)
         inserted_rows_total += inserted_rows
 
         time.sleep(1) # 4chan API demands max 1 request per second

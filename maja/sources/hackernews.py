@@ -2,6 +2,8 @@ import arrow
 import logging
 import requests
 import html
+import common
+
 
 def get_tags(job):
     tags = "story"
@@ -12,6 +14,7 @@ def get_tags(job):
     elif job.get("self") == "both":
         tags += ",(ask_hn,show_hn)"
     return tags
+
 
 def make_request(job, page=0):
     now = arrow.utcnow()
@@ -33,37 +36,22 @@ def make_request(job, page=0):
     return res_json["hits"], res_json["nbPages"]
 
 
-def insert_to_db(conn, cursor, items):
-    rows = []
-    for item in items:
-        rows.append((
-            item["objectID"],
-            "HN",
-            "",
-            "https://news.ycombinator.com/item?id={}".format(item["objectID"]),
-            item["url"],
-            html.unescape(item["title"]),
-            item["points"],
-            item["num_comments"],
-            item["created_at_i"]
-        ))
-
-    # print("rowcount", cursor.rowcount)
-    cursor.executemany(
-        'INSERT OR IGNORE INTO posts(id, category_id, link_in, link_out, title, score, comments, date)'
-        'VALUES (?, (SELECT category_id from categories WHERE type = ? AND subtype = ?), ?, ?, ?, ?, ?, ?) ', rows
+def get_row(item):
+    return (
+        item["objectID"],
+        "HN",
+        "",
+        "https://news.ycombinator.com/item?id={}".format(item["objectID"]),
+        item["url"],
+        html.unescape(item["title"]),
+        item["points"],
+        item["num_comments"],
+        item["created_at_i"]
     )
-    inserted_count = cursor.rowcount
 
-    cursor.executemany(
-        'UPDATE OR IGNORE posts SET id=?, '
-        'category_id=(SELECT category_id from categories WHERE type = ? AND subtype = ?), '
-        'link_in=?, link_out=?, title=?, score=?, comments=?, date=? '
-        'WHERE read = 0', rows
-    )
-    conn.commit()
 
-    return inserted_count
+def get_rows(items):
+    return [get_row(item) for item in items]
 
 
 def run_jobs(conn, cursor, jobs):
@@ -74,7 +62,8 @@ def run_jobs(conn, cursor, jobs):
         while not done:
             items, pages = make_request(job, page)
             if len(items) > 0:
-                inserted_rows = insert_to_db(conn, cursor, items)
+                rows = get_rows(items)
+                inserted_rows = common.insert_to_db(conn, cursor, rows)
                 inserted_rows_total += inserted_rows
 
             if pages > page + 1:
