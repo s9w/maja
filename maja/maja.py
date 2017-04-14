@@ -80,10 +80,12 @@ def init_db():
         ')')
 
     conn.commit()
-    return conn, cursor
+    conn_web = sqlite3.connect("db.sqlite", check_same_thread=False)
+    return conn, conn_web
 
 
-def update_categories(conn, cursor, job_types):
+def update_categories(conn, job_types):
+    cursor = conn.cursor()
     cursor.executemany(
         'INSERT INTO categories(type, subtype)'
         'VALUES (?, ?)', job_types
@@ -91,13 +93,15 @@ def update_categories(conn, cursor, job_types):
     conn.commit()
 
 
-def make_template_data(cursor):
+def make_template_data(conn):
     def sanitize_type(site_type):
         if site_type == "4chan":
             return "fourchan"
         return site_type
 
     template_data = {}
+
+    cursor = conn.cursor()
 
     for site_type in ["reddit", "SE", "4chan"]:
         cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [site_type])
@@ -122,35 +126,34 @@ def make_template_data(cursor):
     return template_data
 
 
-def run_jobs(conn, cursor, se_conf, tokens):
+def run_jobs(conn, se_conf, tokens):
     logging.info("scraping started at {}".format(time.ctime()))
     jobs_by_type, job_types = parse_jobs()
-    update_categories(conn, cursor, job_types)
+    update_categories(conn, job_types)
     for job_type, jobs in jobs_by_type.items():
         if job_type == "SE":
-            stackexchange.run_jobs(conn, cursor, jobs, se_conf, tokens)
+            stackexchange.run_jobs(conn, jobs, se_conf, tokens)
 
         elif job_type == "reddit":
-            reddit.run_jobs(conn, cursor, jobs, tokens)
+            reddit.run_jobs(conn, jobs, tokens)
 
         elif job_type == "HN":
-            hackernews.run_jobs(conn, cursor, jobs)
+            hackernews.run_jobs(conn, jobs)
 
         elif job_type == "4chan":
-            fourchan.run_jobs(conn, cursor, jobs)
+            fourchan.run_jobs(conn, jobs)
 
     # cleanup database
-    cursor.execute("VACUUM")
+    conn.cursor().execute("VACUUM")
 
     logging.info("scraping ended at {}".format(time.ctime()))
 
 
 def main():
-    # se_conf, se_token, reddit_token, conn, cursor, threads, flask_app, scrape_f
     # setup logging
     logging.basicConfig(level=logging.INFO)
 
-    # mute noise packages
+    # mute noisy packages
     logging.getLogger("requests").setLevel(logging.WARNING)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
@@ -170,13 +173,13 @@ def main():
     }
 
     # open/create database
-    conn, cursor = init_db()
+    conn, conn_web = init_db()
 
     flask_app = Flask(__name__, template_folder="static")
 
     def periodic_run():
         # run jobs on separate thread
-        t = threading.Thread(target=run_jobs(conn, cursor, se_conf, tokens))
+        t = threading.Thread(target=run_jobs(conn, se_conf, tokens))
         t.start()
 
         # periodic re-calling
@@ -188,12 +191,13 @@ def main():
         logging.info("marked as read: {}".format(list(request.args.items())))
 
         # set read to 1, null unnecessary info to save space
+        cursor = conn_web.cursor()
         cursor.execute(
             'UPDATE posts SET read = 1, link_in = NULL, link_out = NULL, title = NULL '
             'WHERE category_id = ? AND date <= ?',
             [request.args.get("cat_id"), request.args.get("timestamp")]
         )
-        conn.commit()
+        conn_web.commit()
         return ""
 
     # Without this, the browser sometimes caches the css file. Annoying while changing things
@@ -205,7 +209,7 @@ def main():
 
     @flask_app.route('/')
     def html_root():
-        return render_template('maja.html', data=make_template_data(cursor=cursor))
+        return render_template('maja.html', data=make_template_data(conn=conn_web))
 
     def run_flask():
         flask_app.run(port=80)

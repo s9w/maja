@@ -52,7 +52,8 @@ def get_rows(items, job):
     return rows
 
 
-def run_jobs(conn, cursor, jobs):
+def run_jobs(conn, jobs):
+    cursor = conn.cursor()
     inserted_rows_total = 0
     for job in jobs:
         items = make_request(job)

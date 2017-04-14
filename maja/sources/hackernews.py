@@ -54,7 +54,8 @@ def get_rows(items):
     return [get_row(item) for item in items]
 
 
-def run_jobs(conn, cursor, jobs):
+def run_jobs(conn, jobs):
+    cursor = conn.cursor()
     inserted_rows_total = 0
     for job in jobs:
         done = False

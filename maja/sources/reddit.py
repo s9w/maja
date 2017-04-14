@@ -97,7 +97,8 @@ def make_request(reddit_token, after, job):
     return r_json["data"]["children"], r_json["data"]["after"]
 
 
-def run_jobs(conn, cursor, jobs, tokens):
+def run_jobs(conn, jobs, tokens):
+    cursor = conn.cursor()
     inserted_rows_total = 0
     for job in jobs:
         done = False

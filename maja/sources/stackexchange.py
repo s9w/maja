@@ -68,7 +68,8 @@ def make_request(se_conf, se_token, job, max_score):
            res_json["quota_remaining"]
 
 
-def run_jobs(conn, cursor, jobs, se_conf, tokens):
+def run_jobs(conn, jobs, se_conf, tokens):
+    cursor = conn.cursor()
     inserted_rows_total = 0
     backoff = -1
 
