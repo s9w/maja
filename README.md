@@ -1,10 +1,10 @@
-# dampy
-dampy collects posts from sites you regularly visit (Reddit, Hacker News, Stack Exchange, 4chan) depending on defined criteria and presents them in a central place. 
+# maja
+maja collects posts from sites you regularly visit (Reddit, Hacker News, Stack Exchange, 4chan) depending on defined criteria and presents them in a central place. 
 
 ## Motivation
 Many developers and normal people visit Hacker News, Stack Exchange or Reddit (or even 4chan) daily to keep up to date. This can't easily be automated like RSS feeds from a blog, since only a tiny fraction of the many posts is relevant.
 
-With dampy you can define minimum scores and specific keywords and other criteria for each of the sites. Matching posts get fetched in regular intervals, stored in a database and presented on a simple web interface. This approach is much more time-efficient and will catch things even if you are away for longer periods of time.
+With maja, you can define minimum scores, specific keywords and other criteria for each of the sites. Matching posts get fetched in regular intervals, stored in a SQLite database and presented on a simple web interface. This approach is much more time-efficient and will catch things even if you are away for longer periods of time.
 
 ## Usage
 The **jobs** are read from a `jobs.json` file. The config file contains a list of jobs of types `HN` (Hacker news), `SE` (Stack Exchange), `reddit` (Reddit) or '4chan' (4chan). The posts are stored in a SQLite database file in same folder.
@@ -60,7 +60,7 @@ You can have multiple jobs for the same site. As an example, if you want all Hac
 The web interface groups posts by subreddit and Stack Exchange Site (HN is its own category). They are sorted from newest to older. Clicking the green arrow on the left will mark that post and every one below it (everything older) in the same group as read. Those will not show up next time.
 
 ## Stack Exchange API setup
-Stack Exchange requires the app to be authorized by the user to increase its API limits. Dampy does **not** not use this authentification to access *any* user data. But there is no way to authenticate without this access.
+Stack Exchange requires the app to be authorized by the user to increase its API limits. maja does **not** not use this authentification to access *any* user data. But there is no way to authenticate without this access.
 
 To authenticate, go to [https://stackexchange.com/oauth/dialog?client_id=8691&scope=no_expiry&redirect_uri=https://stackexchange.com/oauth/login_success](this) site and accept. You'll be redirected to another site. From its url, copy the string after `access_token=` into the `se_access_token` value in `secrets.json`.
 
