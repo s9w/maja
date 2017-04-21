@@ -17,17 +17,18 @@ def se_load_token():
     return data.get("se_access_token", "")
 
 
-def parse_jobs():
-    def get_subtype(job):
-        if job["type"] == "SE":
-            return job["site"]
-        elif job["type"] == "reddit":
-            return job["subreddit"]
-        elif job["type"] == "4chan":
-            return job["board"]
-        else:
-            return ""
+def get_subtype(job):
+    if job["type"] == "SE":
+        return job["site"]
+    elif job["type"] == "reddit":
+        return job["subreddit"]
+    elif job["type"] == "4chan":
+        return job["board"]
+    else:
+        return ""
 
+
+def parse_jobs():
     # load from json job file
     try:
         with open('jobs.json') as data_file:
@@ -103,11 +104,13 @@ def make_template_data(conn):
 
     cursor = conn.cursor()
 
+    jobs_by_type, job_types = parse_jobs()
+
     for site_type in ["reddit", "SE", "4chan"]:
         cursor.execute('SELECT DISTINCT subtype FROM categories WHERE type = ?', [site_type])
-        subtypes = [item[0] for item in cursor.fetchall()]
 
-        for subtype in subtypes:
+        for job in jobs_by_type[site_type]:
+            subtype = get_subtype(job=job)
             cursor.execute(
                 'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype, categories.category_id FROM posts JOIN categories '
                 'ON posts.category_id = categories.category_id '
@@ -117,6 +120,8 @@ def make_template_data(conn):
                 "subtype": subtype,
                 "posts": cursor.fetchall()
             })
+
+    # Hacker News has no subtype
     cursor.execute(
         'SELECT DISTINCT score, comments, title, link_in, ifnull(link_out, link_in), date, type, subtype, categories.category_id FROM posts JOIN categories '
         'ON posts.category_id = categories.category_id '
