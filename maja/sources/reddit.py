@@ -25,13 +25,13 @@ def get_row(item_data, subreddit):
         if data["is_self"]:
             return None
         else:
-            return data["url"]
+            return html.unescape(data["url"])
 
     return item_data["id"], \
            "reddit", \
            subreddit, \
            "https://www.reddit.com{}".format(item_data["permalink"]), \
-           html.unescape(get_link_out(item_data)), \
+           get_link_out(item_data), \
            html.unescape(item_data["title"]), \
            item_data["score"], \
            item_data["num_comments"], \
