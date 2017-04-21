@@ -31,7 +31,7 @@ def get_row(item_data, subreddit):
            "reddit", \
            subreddit, \
            "https://www.reddit.com{}".format(item_data["permalink"]), \
-           get_link_out(item_data), \
+           html.unescape(get_link_out(item_data)), \
            html.unescape(item_data["title"]), \
            item_data["score"], \
            item_data["num_comments"], \
