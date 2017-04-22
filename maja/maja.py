@@ -33,6 +33,9 @@ def parse_jobs():
     try:
         with open('jobs.json') as data_file:
             json_jobs = json.load(data_file)
+    except json.JSONDecodeError as e:
+        logging.error("jobs file is invalid json")
+        json_jobs = []
     except FileNotFoundError:
         json_jobs = []
 
