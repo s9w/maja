@@ -1,6 +1,7 @@
 import requests
 import logging
 import html
+import time
 import common
 
 
@@ -15,6 +16,7 @@ def get_token():
         "device_id": device_id
     }
     r = requests.post(endpoint, data=post_data, headers=headers, auth=(client_id, ""))
+    r.raise_for_status()
 
     token = r.json()["access_token"]
     return token
@@ -93,6 +95,7 @@ def make_request(reddit_token, after, job):
         raise ConnectionErrorRedditAuth
     elif r.status_code == 503:  # Service unavailable
         raise ConnectionError503
+    r.raise_for_status()
     r_json = r.json()
     return r_json["data"]["children"], r_json["data"]["after"]
 
@@ -110,10 +113,12 @@ def run_jobs(conn, jobs, tokens):
                     items, after = make_request(tokens["reddit"], after, job)
                 except ConnectionError503:
                     logging.warning("Reddit: ERROR 503. Retrying...")
+                    time.sleep(2)
                     continue
                 except ConnectionErrorRedditAuth:
                     tokens["reddit"] = get_token()
                     logging.warning("Reddit: Token expired. Now token: {}. Retrying...".format(tokens["reddit"]))
+                    time.sleep(2)
                     continue
                 break
 
